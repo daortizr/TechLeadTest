@@ -38,30 +38,22 @@ export function EventStreamProvider({ children }: { children: React.ReactNode })
         lastMessageTimeRef.current = new Date()
       })
 
-      es.addEventListener('seat.locked', (e: MessageEvent) => {
-        const data: FlightEvent = JSON.parse(e.data)
-        // Set clock offset from first event
-        if ('lockedUntil' in data && data.lockedUntil && !sessionStorage.getItem('clock-set')) {
-          setClockOffset(data.lockedUntil)
-          sessionStorage.setItem('clock-set', 'true')
+      const handleMessage = (eventType: string) => (e: Event) => {
+        if (e instanceof MessageEvent) {
+          const data: FlightEvent = JSON.parse((e as MessageEvent).data)
+          // Set clock offset from first event
+          if ('lockedUntil' in data && data.lockedUntil && !sessionStorage.getItem('clock-set')) {
+            setClockOffset(data.lockedUntil)
+            sessionStorage.setItem('clock-set', 'true')
+          }
+          listenersRef.current.forEach(cb => cb(data))
         }
-        listenersRef.current.forEach(cb => cb(data))
-      })
+      }
 
-      es.addEventListener('seat.released', (e: MessageEvent) => {
-        const data: FlightEvent = JSON.parse(e.data)
-        listenersRef.current.forEach(cb => cb(data))
-      })
-
-      es.addEventListener('seat.reserved', (e: MessageEvent) => {
-        const data: FlightEvent = JSON.parse(e.data)
-        listenersRef.current.forEach(cb => cb(data))
-      })
-
-      es.addEventListener('flight.updated', (e: MessageEvent) => {
-        const data: FlightEvent = JSON.parse(e.data)
-        listenersRef.current.forEach(cb => cb(data))
-      })
+      es.addEventListener('seat.locked', handleMessage('seat.locked'))
+      es.addEventListener('seat.released', handleMessage('seat.released'))
+      es.addEventListener('seat.reserved', handleMessage('seat.reserved'))
+      es.addEventListener('flight.updated', handleMessage('flight.updated'))
 
       es.onerror = () => {
         console.error('SSE error, reconnecting...')

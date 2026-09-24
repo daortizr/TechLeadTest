@@ -17,7 +17,7 @@ export default function SearchPage({ onSelectFlight }: { onSelectFlight: (flight
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const handleSearch = async (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setLoading(true)
     setError('')
@@ -47,7 +47,7 @@ export default function SearchPage({ onSelectFlight }: { onSelectFlight: (flight
               placeholder="BOG"
               maxLength={3}
               value={params.origin}
-              onChange={(e) => setParams({ ...params, origin: e.target.value })}
+              onChange={(e) => setParams({ ...params, origin: (e.target as HTMLInputElement).value })}
               required
             />
           </div>
@@ -60,7 +60,7 @@ export default function SearchPage({ onSelectFlight }: { onSelectFlight: (flight
               placeholder="MDE"
               maxLength={3}
               value={params.destination}
-              onChange={(e) => setParams({ ...params, destination: e.target.value })}
+              onChange={(e) => setParams({ ...params, destination: (e.target as HTMLInputElement).value })}
               required
             />
           </div>
@@ -71,7 +71,7 @@ export default function SearchPage({ onSelectFlight }: { onSelectFlight: (flight
               id="date"
               type="date"
               value={params.date}
-              onChange={(e) => setParams({ ...params, date: e.target.value })}
+              onChange={(e) => setParams({ ...params, date: (e.target as HTMLInputElement).value })}
               required
             />
           </div>

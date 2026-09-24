@@ -28,7 +28,7 @@ export default function CheckoutPage({ flightId, seat, onBack, onSuccess }: Chec
 
   const flight: FlightDTO | undefined = state.flights[flightId]
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setLoading(true)
     setError('')
@@ -106,7 +106,7 @@ export default function CheckoutPage({ flightId, seat, onBack, onSuccess }: Chec
               id="email"
               type="email"
               value={paymentData.email}
-              onChange={(e) => setPaymentData({ ...paymentData, email: e.target.value })}
+              onChange={(e) => setPaymentData({ ...paymentData, email: (e.target as HTMLInputElement).value })}
               required
             />
           </div>
@@ -117,7 +117,7 @@ export default function CheckoutPage({ flightId, seat, onBack, onSuccess }: Chec
               id="cardName"
               type="text"
               value={paymentData.cardName}
-              onChange={(e) => setPaymentData({ ...paymentData, cardName: e.target.value })}
+              onChange={(e) => setPaymentData({ ...paymentData, cardName: (e.target as HTMLInputElement).value })}
               required
             />
           </div>
@@ -130,9 +130,10 @@ export default function CheckoutPage({ flightId, seat, onBack, onSuccess }: Chec
               placeholder="1234 5678 9012 3456"
               maxLength={19}
               value={paymentData.cardNumber}
-              onChange={(e) =>
-                setPaymentData({ ...paymentData, cardNumber: e.target.value.replace(/\D/g, '').slice(0, 16) })
-              }
+              onChange={(e) => {
+                const value = (e.target as HTMLInputElement).value.replace(/\D/g, '').slice(0, 16)
+                setPaymentData({ ...paymentData, cardNumber: value })
+              }}
               required
             />
           </div>
@@ -146,7 +147,7 @@ export default function CheckoutPage({ flightId, seat, onBack, onSuccess }: Chec
                 placeholder="MM/AA"
                 maxLength={5}
                 value={paymentData.expiryDate}
-                onChange={(e) => setPaymentData({ ...paymentData, expiryDate: e.target.value })}
+                onChange={(e) => setPaymentData({ ...paymentData, expiryDate: (e.target as HTMLInputElement).value })}
                 required
               />
             </div>
@@ -159,7 +160,10 @@ export default function CheckoutPage({ flightId, seat, onBack, onSuccess }: Chec
                 placeholder="123"
                 maxLength={3}
                 value={paymentData.cvv}
-                onChange={(e) => setPaymentData({ ...paymentData, cvv: e.target.value.replace(/\D/g, '') })}
+                onChange={(e) => {
+                  const value = (e.target as HTMLInputElement).value.replace(/\D/g, '')
+                  setPaymentData({ ...paymentData, cvv: value })
+                }}
                 required
               />
             </div>

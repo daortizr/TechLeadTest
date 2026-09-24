@@ -9,7 +9,7 @@ interface AdminLoginPageProps {
 export default function AdminLoginPage({ onLoginSuccess }: AdminLoginPageProps): React.ReactElement {
   const [credentials, setCredentials] = useState({ username: '', password: '' })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     // Simple client-side login (admin/admin)
     if (credentials.username === 'admin' && credentials.password === 'admin') {
@@ -31,7 +31,7 @@ export default function AdminLoginPage({ onLoginSuccess }: AdminLoginPageProps):
             id="username"
             type="text"
             value={credentials.username}
-            onChange={(e) => setCredentials({ ...credentials, username: e.target.value })}
+            onChange={(e) => setCredentials({ ...credentials, username: (e.target as HTMLInputElement).value })}
             required
           />
         </div>
@@ -42,7 +42,7 @@ export default function AdminLoginPage({ onLoginSuccess }: AdminLoginPageProps):
             id="password"
             type="password"
             value={credentials.password}
-            onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
+            onChange={(e) => setCredentials({ ...credentials, password: (e.target as HTMLInputElement).value })}
             required
           />
         </div>
