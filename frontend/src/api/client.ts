@@ -51,6 +51,12 @@ export const api = {
 
     getSeatSnapshot: (flightId: string, clientId?: string) =>
       fetchApi<SeatSnapshotDTO>(`/flights/${flightId}/seats`, { clientId }),
+
+    changeStatus: (flightId: string, status: string) =>
+      fetchApi(`/flights/${flightId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status }),
+      }),
   },
 
   seats: {
@@ -74,24 +80,21 @@ export const api = {
   },
 
   reservations: {
-    create: (
-      flightId: string,
-      seat: string,
-      clientId: string,
-      idempotencyKey: string,
-      passenger: any,
-      payment: any
-    ) =>
-      fetchApi<ReservationDTO>('/reservations', {
+    create: (payload: {
+      flightId: string
+      seatNumber: string
+      email: string
+      clientId: string
+    }) =>
+      fetchApi<{ code: string }>('/reservations', {
         method: 'POST',
         body: JSON.stringify({
-          flightId,
-          seat,
-          passenger,
-          payment,
+          flightId: payload.flightId,
+          seat: payload.seatNumber,
+          passengerEmail: payload.email,
         }),
-        clientId,
-        idempotencyKey,
+        clientId: payload.clientId,
+        idempotencyKey: `${payload.flightId}-${payload.seatNumber}`,
       }),
 
     getByCode: (code: string) => fetchApi<ReservationDTO>(`/reservations/${code}`),

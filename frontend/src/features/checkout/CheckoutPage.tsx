@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useStore } from '../../realtime'
 import { api } from '../../api/client'
+import { getClientId } from '../../lib/clientId'
 import { formatPrice } from '../../lib/format'
 import { Button } from '../../components'
 import './CheckoutPage.css'
@@ -32,10 +33,12 @@ export default function CheckoutPage({ flightId, seat, onBack, onSuccess }: Chec
     setError('')
 
     try {
+      const clientId = getClientId()
       const result = await api.reservations.create({
         flightId,
         seatNumber: seat,
-        email: paymentData.email
+        email: paymentData.email,
+        clientId
       })
 
       if (result.code) {
