@@ -1,0 +1,110 @@
+.booking-page {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 2rem;
+}
+
+.booking-header {
+  display: flex;
+  gap: 1rem;
+}
+
+.booking-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 60vh;
+}
+
+.confirmation-card {
+  background: var(--white);
+  padding: 3rem 2rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--gray-200);
+  max-width: 500px;
+  text-align: center;
+}
+
+.confirmation-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 1rem;
+  background: rgba(30, 142, 90, 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  color: var(--ok);
+  font-weight: 700;
+}
+
+.confirmation-card h1 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.75rem;
+  color: var(--ink);
+}
+
+.confirmation-text {
+  color: var(--gray-500);
+  margin-bottom: 2rem;
+  font-size: 1rem;
+}
+
+.booking-details {
+  background: var(--gray-50);
+  padding: 1.5rem;
+  border-radius: var(--radius-md);
+  margin: 2rem 0;
+  text-align: left;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+
+  .label {
+    color: var(--gray-500);
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .value {
+    color: var(--ink);
+    font-weight: 600;
+    font-family: monospace;
+  }
+}
+
+.confirmation-note {
+  color: var(--gray-500);
+  font-size: 0.875rem;
+  margin: 1.5rem 0;
+}
+
+.confirmation-card button {
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .booking-page {
+    padding: 1rem;
+  }
+
+  .confirmation-card {
+    padding: 2rem 1.5rem;
+  }
+
+  .confirmation-icon {
+    width: 60px;
+    height: 60px;
+    font-size: 2rem;
+  }
+
+  .confirmation-card h1 {
+    font-size: 1.5rem;
+  }
+}
