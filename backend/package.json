@@ -12,7 +12,11 @@
     "lint": "eslint src --ext .ts",
     "test": "vitest",
     "test:integration": "vitest run tests/integration",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "migration:generate": "typeorm migration:generate",
+    "migration:run": "typeorm migration:run",
+    "migration:revert": "typeorm migration:revert",
+    "db:reset": "npm run migration:revert && npm run migration:run"
   },
   "dependencies": {
     "@flight-reservations/shared": "workspace:*",
