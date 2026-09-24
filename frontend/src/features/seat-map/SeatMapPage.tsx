@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { useStore } from '../../realtime'
+import { api } from '../../api/client'
 import { getClientId } from '../../lib/clientId'
 import { Button } from '../../components'
 import './SeatMapPage.css'
@@ -11,6 +13,8 @@ interface SeatMapPageProps {
 
 export default function SeatMapPage({ flightId, onBackClick, onCheckout }: SeatMapPageProps) {
   const { state } = useStore()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
   const clientId = getClientId()
 
   const flight = state.flights[flightId]
@@ -19,6 +23,30 @@ export default function SeatMapPage({ flightId, onBackClick, onCheckout }: SeatM
 
   if (!flight) {
     return <div>Cargando...</div>
+  }
+
+  const handleSeatClick = async (seatNumber: string) => {
+    if (loading) return
+
+    const seat = seats[seatNumber]
+    if (!seat || seat.status === 'RESERVED') {
+      return
+    }
+
+    if (seat.status === 'BLOCKED' && myLock?.seat !== seatNumber) {
+      return
+    }
+
+    setLoading(true)
+    setError('')
+
+    try {
+      await api.seats.lock(flightId, seatNumber, clientId)
+    } catch (err: any) {
+      setError(err.message || 'Error al bloquear el asiento')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const seatArray = Object.values(seats).sort((a, b) =>
@@ -36,6 +64,8 @@ export default function SeatMapPage({ flightId, onBackClick, onCheckout }: SeatM
           {flight.origin} → {flight.destination}
         </div>
       </div>
+
+      {error && <div className="error-message">{error}</div>}
 
       <div className="map-container">
         <div className="seat-map">
@@ -69,7 +99,12 @@ export default function SeatMapPage({ flightId, onBackClick, onCheckout }: SeatM
                 <button
                   key={seat.seatNumber}
                   className={`seat-button ${statusClass}`}
-                  disabled={seat.status === 'RESERVED' || (seat.status === 'BLOCKED' && !isMine)}
+                  onClick={() => handleSeatClick(seat.seatNumber)}
+                  disabled={
+                    loading ||
+                    seat.status === 'RESERVED' ||
+                    (seat.status === 'BLOCKED' && !isMine)
+                  }
                   title={seat.seatNumber}
                 >
                   {seat.seatNumber}
@@ -90,7 +125,11 @@ export default function SeatMapPage({ flightId, onBackClick, onCheckout }: SeatM
               <span>Vencimiento:</span>
               <strong>{new Date(myLock.lockedUntil).toLocaleTimeString()}</strong>
             </div>
-            <Button onClick={() => onCheckout(myLock.seat)} className="checkout-btn">
+            <Button
+              onClick={() => onCheckout(myLock.seat)}
+              className="checkout-btn"
+              disabled={loading}
+            >
               Proceder a pago
             </Button>
           </div>

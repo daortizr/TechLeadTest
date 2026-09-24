@@ -4,6 +4,15 @@
   gap: 2rem;
 }
 
+.error-message {
+  background: rgba(220, 38, 38, 0.1);
+  color: #DC2626;
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  border-left: 4px solid #DC2626;
+  font-size: 0.875rem;
+}
+
 .map-header {
   display: flex;
   flex-direction: column;

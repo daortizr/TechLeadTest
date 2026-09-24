@@ -130,6 +130,7 @@
   color: #DC2626;
   padding: 1rem;
   border-radius: var(--radius-md);
+  border-left: 4px solid #DC2626;
   margin-bottom: 1.5rem;
   font-size: 0.875rem;
 }
