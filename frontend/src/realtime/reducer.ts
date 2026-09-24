@@ -1,5 +1,5 @@
 import { AppState, AppAction } from './types'
-import { SeatStatus } from '@flight-reservations/shared'
+import { SeatStatus, SeatDTO, FlightDTO } from '@flight-reservations/shared'
 
 const initialState: AppState = {
   connection: { state: 'connecting', lastMessageAt: null },
@@ -39,7 +39,7 @@ export function appReducer(state: AppState = initialState, action: AppAction): A
         flights: action.flights.reduce((acc, flight) => {
           acc[flight.id] = flight
           return acc
-        }, {} as Record<string, any>),
+        }, {} as Record<string, FlightDTO>),
       }
 
     case 'SET_SEAT_SNAPSHOT': {
@@ -52,7 +52,7 @@ export function appReducer(state: AppState = initialState, action: AppAction): A
           [flightId]: seats.reduce((acc, seat) => {
             acc[seat.seatNumber] = seat
             return acc
-          }, {} as Record<string, any>),
+          }, {} as Record<string, SeatDTO>),
         },
       }
     }
@@ -65,7 +65,7 @@ export function appReducer(state: AppState = initialState, action: AppAction): A
       const activity = state.activity[flightId] || []
       const newActivity = [event, ...activity].slice(0, 10)
 
-      let newState = {
+      const newState: AppState = {
         ...state,
         activity: { ...state.activity, [flightId]: newActivity },
       }

@@ -10,13 +10,13 @@ interface StoreContextType {
 
 const StoreContext = React.createContext<StoreContextType | null>(null)
 
-export function useStore() {
+export function useStore(): StoreContextType {
   const ctx = useContext(StoreContext)
   if (!ctx) throw new Error('useStore must be used within StoreProvider')
   return ctx
 }
 
-export function StoreProvider({ children }: { children: React.ReactNode }) {
+export function StoreProvider({ children }: { children: React.ReactNode }): React.ReactElement {
   const [state, dispatch] = useReducer(appReducer, {
     connection: { state: 'connecting', lastMessageAt: null },
     clockOffsetMs: 0,

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useStore } from '../../realtime'
 import { api } from '../../api/client'
 import { getClientId } from '../../lib/clientId'
+import { SeatDTO } from '@flight-reservations/shared'
 import { Button } from '../../components'
 import './SeatMapPage.css'
 
@@ -11,14 +12,14 @@ interface SeatMapPageProps {
   onCheckout: (seat: string) => void
 }
 
-export default function SeatMapPage({ flightId, onBackClick, onCheckout }: SeatMapPageProps) {
+export default function SeatMapPage({ flightId, onBackClick, onCheckout }: SeatMapPageProps): React.ReactElement {
   const { state, dispatch } = useStore()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const clientId = getClientId()
 
   const flight = state.flights[flightId]
-  const seats = state.seats[flightId] || {}
+  const seats: Record<string, SeatDTO> = state.seats[flightId] || {}
   const myLock = state.myLock[flightId]
 
   useEffect(() => {

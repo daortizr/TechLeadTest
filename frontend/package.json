@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@flight-reservations/shared": "workspace:*",
+    "@flight-reservations/shared": "file:../shared",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },

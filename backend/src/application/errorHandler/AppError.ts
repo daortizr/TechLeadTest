@@ -12,7 +12,7 @@ export class AppError extends Error {
     Object.setPrototypeOf(this, AppError.prototype);
   }
 
-  toJSON() {
+  toJSON(): { error: { code: ErrorCode; message: string; details?: Record<string, unknown> } } {
     return {
       error: {
         code: this.code,
@@ -22,35 +22,35 @@ export class AppError extends Error {
     };
   }
 
-  static badRequest(code: ErrorCode, message: string, details?: Record<string, unknown>) {
+  static badRequest(code: ErrorCode, message: string, details?: Record<string, unknown>): AppError {
     return new AppError(code, message, 400, details);
   }
 
-  static paymentDeclined(details?: Record<string, unknown>) {
+  static paymentDeclined(details?: Record<string, unknown>): AppError {
     return new AppError(ErrorCode.PAYMENT_DECLINED, 'Pago rechazado', 402, details);
   }
 
-  static paymentUnavailable(details?: Record<string, unknown>) {
+  static paymentUnavailable(details?: Record<string, unknown>): AppError {
     return new AppError(ErrorCode.PAYMENT_UNAVAILABLE, 'Pasarela no disponible', 503, details);
   }
 
-  static forbidden(code: ErrorCode, message: string, details?: Record<string, unknown>) {
+  static forbidden(code: ErrorCode, message: string, details?: Record<string, unknown>): AppError {
     return new AppError(code, message, 403, details);
   }
 
-  static notFound(code: ErrorCode, message: string, details?: Record<string, unknown>) {
+  static notFound(code: ErrorCode, message: string, details?: Record<string, unknown>): AppError {
     return new AppError(code, message, 404, details);
   }
 
-  static conflict(code: ErrorCode, message: string, details?: Record<string, unknown>) {
+  static conflict(code: ErrorCode, message: string, details?: Record<string, unknown>): AppError {
     return new AppError(code, message, 409, details);
   }
 
-  static unprocessableEntity(code: ErrorCode, message: string, details?: Record<string, unknown>) {
+  static unprocessableEntity(code: ErrorCode, message: string, details?: Record<string, unknown>): AppError {
     return new AppError(code, message, 422, details);
   }
 
-  static internal(message: string = 'Error interno del servidor', details?: Record<string, unknown>) {
+  static internal(message: string = 'Error interno del servidor', details?: Record<string, unknown>): AppError {
     return new AppError(ErrorCode.INTERNAL_ERROR, message, 500, details);
   }
 }

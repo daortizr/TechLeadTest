@@ -6,7 +6,7 @@ interface AdminLoginPageProps {
   onLoginSuccess: () => void
 }
 
-export default function AdminLoginPage({ onLoginSuccess }: AdminLoginPageProps) {
+export default function AdminLoginPage({ onLoginSuccess }: AdminLoginPageProps): React.ReactElement {
   const [credentials, setCredentials] = useState({ username: '', password: '' })
 
   const handleSubmit = (e: React.FormEvent) => {

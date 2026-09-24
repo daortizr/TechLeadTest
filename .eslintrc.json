@@ -39,8 +39,7 @@
           "error",
           {
             "patterns": [
-              "**/infraestructure/**",
-              "!**/infraestructure/outputPorts/**",
+              "**/infraestructure/!(outputPorts)/**",
               "typeorm",
               "express",
               "pg"

@@ -1,20 +1,21 @@
 import React, { useEffect, useRef, useContext } from 'react'
 import { setClockOffset } from '../lib/clock'
+import { FlightEvent } from '@flight-reservations/shared'
 
 interface EventStreamContextType {
-  subscribe: (callback: (event: any) => void) => () => void
+  subscribe: (callback: (event: FlightEvent) => void) => () => void
 }
 
 const EventStreamContext = React.createContext<EventStreamContextType | null>(null)
 
-export function useEventStream() {
+export function useEventStream(): EventStreamContextType {
   const ctx = useContext(EventStreamContext)
   if (!ctx) throw new Error('useEventStream must be used within EventStreamProvider')
   return ctx
 }
 
-export function EventStreamProvider({ children }: { children: React.ReactNode }) {
-  const listenersRef = useRef<Set<(event: any) => void>>(new Set())
+export function EventStreamProvider({ children }: { children: React.ReactNode }): React.ReactElement {
+  const listenersRef = useRef<Set<(event: FlightEvent) => void>>(new Set())
   const eventSourceRef = useRef<EventSource | null>(null)
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const lastMessageTimeRef = useRef<Date>(new Date())
@@ -37,26 +38,29 @@ export function EventStreamProvider({ children }: { children: React.ReactNode })
         lastMessageTimeRef.current = new Date()
       })
 
-      es.addEventListener('seat.locked', (e: any) => {
-        const data = JSON.parse(e.data)
+      es.addEventListener('seat.locked', (e: MessageEvent) => {
+        const data: FlightEvent = JSON.parse(e.data)
         // Set clock offset from first event
-        if (data.lockedUntil && !sessionStorage.getItem('clock-set')) {
+        if ('lockedUntil' in data && data.lockedUntil && !sessionStorage.getItem('clock-set')) {
           setClockOffset(data.lockedUntil)
           sessionStorage.setItem('clock-set', 'true')
         }
         listenersRef.current.forEach(cb => cb(data))
       })
 
-      es.addEventListener('seat.released', (e: any) => {
-        listenersRef.current.forEach(cb => cb(JSON.parse(e.data)))
+      es.addEventListener('seat.released', (e: MessageEvent) => {
+        const data: FlightEvent = JSON.parse(e.data)
+        listenersRef.current.forEach(cb => cb(data))
       })
 
-      es.addEventListener('seat.reserved', (e: any) => {
-        listenersRef.current.forEach(cb => cb(JSON.parse(e.data)))
+      es.addEventListener('seat.reserved', (e: MessageEvent) => {
+        const data: FlightEvent = JSON.parse(e.data)
+        listenersRef.current.forEach(cb => cb(data))
       })
 
-      es.addEventListener('flight.updated', (e: any) => {
-        listenersRef.current.forEach(cb => cb(JSON.parse(e.data)))
+      es.addEventListener('flight.updated', (e: MessageEvent) => {
+        const data: FlightEvent = JSON.parse(e.data)
+        listenersRef.current.forEach(cb => cb(data))
       })
 
       es.onerror = () => {

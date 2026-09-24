@@ -6,7 +6,7 @@ interface BookingPageProps {
   onBackClick: () => void
 }
 
-export default function BookingPage({ code, onBackClick }: BookingPageProps) {
+export default function BookingPage({ code, onBackClick }: BookingPageProps): React.ReactElement {
   return (
     <div className="booking-page">
       <div className="booking-header">

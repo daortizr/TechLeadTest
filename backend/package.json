@@ -19,7 +19,7 @@
     "db:reset": "npm run migration:revert && npm run migration:run"
   },
   "dependencies": {
-    "@flight-reservations/shared": "workspace:*",
+    "@flight-reservations/shared": "file:../shared",
     "express": "^4.18.2",
     "typeorm": "^0.3.17",
     "pg": "^8.11.3",

@@ -11,7 +11,7 @@ export default function Button({
   size = 'md',
   className = '',
   ...props
-}: ButtonProps) {
+}: ButtonProps): React.ReactElement {
   return (
     <button
       className={`btn btn-${variant} btn-${size} ${className}`}

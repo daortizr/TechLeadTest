@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useStore } from '../../realtime'
 import { api } from '../../api/client'
 import { getClientId } from '../../lib/clientId'
+import { FlightDTO } from '@flight-reservations/shared'
 import { formatPrice } from '../../lib/format'
 import { Button } from '../../components'
 import './CheckoutPage.css'
@@ -13,7 +14,7 @@ interface CheckoutPageProps {
   onSuccess: (reservationCode: string) => void
 }
 
-export default function CheckoutPage({ flightId, seat, onBack, onSuccess }: CheckoutPageProps) {
+export default function CheckoutPage({ flightId, seat, onBack, onSuccess }: CheckoutPageProps): React.ReactElement {
   const { state } = useStore()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -25,7 +26,7 @@ export default function CheckoutPage({ flightId, seat, onBack, onSuccess }: Chec
     email: ''
   })
 
-  const flight = state.flights[flightId]
+  const flight: FlightDTO | undefined = state.flights[flightId]
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

@@ -1,5 +1,5 @@
 import { ListAirportsInputPort } from '../inputPorts';
-import { AirportRepository, UnitOfWork, EventPublisher } from '../../infraestructure/outputPorts';
+import { AirportRepository, UnitOfWork } from '../../infraestructure/outputPorts';
 import { Logger } from '../../infraestructure/outputPorts';
 
 export class ListAirportsUseCase implements ListAirportsInputPort {

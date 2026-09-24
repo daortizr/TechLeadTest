@@ -1,7 +1,7 @@
 import { useStore } from '../realtime'
 import './Header.css'
 
-export default function Header({ title }: { title: string }) {
+export default function Header({ title }: { title: string }): React.ReactElement {
   const { state } = useStore()
 
   const connectionText = {

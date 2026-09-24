@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { useStore } from '../../realtime'
 import { api } from '../../api/client'
+import { FlightDTO } from '@flight-reservations/shared'
 import { formatPrice, formatDateTime } from '../../lib/format'
 import { Button } from '../../components'
 import './SearchPage.css'
@@ -11,10 +11,9 @@ interface SearchParams {
   date: string
 }
 
-export default function SearchPage({ onSelectFlight }: { onSelectFlight: (flightId: string) => void }) {
-  const { state } = useStore()
+export default function SearchPage({ onSelectFlight }: { onSelectFlight: (flightId: string) => void }): React.ReactElement {
   const [params, setParams] = useState<SearchParams>({ origin: '', destination: '', date: '' })
-  const [flights, setFlights] = useState<any[]>([])
+  const [flights, setFlights] = useState<FlightDTO[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 

@@ -24,9 +24,8 @@ export class ExpireLocksUseCase implements ExpireLocksInputPort {
 
     try {
       const events: SeatReleasedEvent[] = [];
-      const now = new Date();
 
-      await this.unitOfWork.run(async (tx) => {
+      await this.unitOfWork.run(async () => {
         // In a full implementation, this would call a batch expire method on SeatRepository
         // that executes the SQL: UPDATE seats SET status = 'AVAILABLE', locked_by = NULL, ...
         // WHERE status = 'BLOCKED' AND locked_until <= now() RETURNING ...

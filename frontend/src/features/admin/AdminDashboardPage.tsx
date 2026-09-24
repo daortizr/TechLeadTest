@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useStore } from '../../realtime'
 import { api } from '../../api/client'
+import { FlightDTO } from '@flight-reservations/shared'
 import { Button } from '../../components'
 import './AdminPage.css'
 
@@ -8,14 +9,14 @@ interface AdminDashboardPageProps {
   onLogout: () => void
 }
 
-export default function AdminDashboardPage({ onLogout }: AdminDashboardPageProps) {
+export default function AdminDashboardPage({ onLogout }: AdminDashboardPageProps): React.ReactElement {
   const { state } = useStore()
   const [loading, setLoading] = useState<string>('')
   const [error, setError] = useState('')
 
-  const flights = Object.values(state.flights)
+  const flights: FlightDTO[] = Object.values(state.flights)
 
-  const handleChangeFlightStatus = async (flightId: string, newStatus: string) => {
+  const handleChangeFlightStatus = async (flightId: string, newStatus: string): Promise<void> => {
     setLoading(flightId)
     setError('')
 

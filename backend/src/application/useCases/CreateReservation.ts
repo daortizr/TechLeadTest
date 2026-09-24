@@ -13,8 +13,8 @@ import { Logger } from '../../infraestructure/outputPorts';
 import { AppError } from '../errorHandler';
 import { ErrorCode, SeatReservedEvent, FlightUpdatedEvent } from '@flight-reservations/shared';
 import { generateReservationCode } from '../helpers';
-import { Reservation, Payment, IdempotencyKey } from '../../domain/entities';
-import { IdempotencyKeyStatus, PaymentStatus } from '../../domain/enums';
+import { Reservation, Payment } from '../../domain/entities';
+import { PaymentStatus } from '../../domain/enums';
 import { v4 as uuidv4 } from 'uuid';
 
 export class CreateReservationUseCase implements CreateReservationInputPort {
@@ -88,15 +88,6 @@ export class CreateReservationUseCase implements CreateReservationInputPort {
 
       // Register payment as AUTHORIZED
       const paymentId = uuidv4();
-      const paymentRecord = new Payment(
-        paymentId,
-        idempotencyKey,
-        null, // No reservation yet
-        authorizationRef,
-        verifyResult.priceCents,
-        PaymentStatus.AUTHORIZED,
-        now
-      );
 
       // Phase D: Reserve seat (short transaction)
       const reservationResult = await this.unitOfWork.run(async (tx) => {
