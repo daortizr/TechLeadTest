@@ -1,0 +1,53 @@
+{
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaVersion": 2020,
+    "sourceType": "module"
+  },
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended"
+  ],
+  "plugins": ["@typescript-eslint"],
+  "rules": {
+    "@typescript-eslint/no-explicit-any": "error",
+    "@typescript-eslint/explicit-module-boundary-types": "warn"
+  },
+  "overrides": [
+    {
+      "files": ["backend/src/domain/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              "**/application/**",
+              "**/infraestructure/**",
+              "typeorm",
+              "express",
+              "pg"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["backend/src/application/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              "**/infraestructure/**",
+              "!**/infraestructure/outputPorts/**",
+              "typeorm",
+              "express",
+              "pg"
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
