@@ -119,6 +119,20 @@ export function appReducer(state: AppState = initialState, action: AppAction): A
       return newState
     }
 
+    case 'SET_MY_LOCK':
+      return {
+        ...state,
+        myLock: {
+          ...state.myLock,
+          [action.flightId]: action.lock
+            ? {
+                seat: action.lock.seat,
+                lockedUntil: new Date(action.lock.lockedUntil),
+              }
+            : null,
+        },
+      }
+
     case 'CLEAR_MY_LOCK':
       return {
         ...state,

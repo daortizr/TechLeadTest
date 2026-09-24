@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useStore } from '../../realtime'
 import { api } from '../../api/client'
 import { getClientId } from '../../lib/clientId'
@@ -12,7 +12,7 @@ interface SeatMapPageProps {
 }
 
 export default function SeatMapPage({ flightId, onBackClick, onCheckout }: SeatMapPageProps) {
-  const { state } = useStore()
+  const { state, dispatch } = useStore()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const clientId = getClientId()
@@ -20,6 +20,33 @@ export default function SeatMapPage({ flightId, onBackClick, onCheckout }: SeatM
   const flight = state.flights[flightId]
   const seats = state.seats[flightId] || {}
   const myLock = state.myLock[flightId]
+
+  useEffect(() => {
+    const loadSeatSnapshot = async () => {
+      try {
+        const snapshot = await api.flights.getSeatSnapshot(flightId, clientId)
+        dispatch({
+          type: 'SET_SEAT_SNAPSHOT',
+          flightId,
+          seats: snapshot.seats,
+          flight: snapshot.flight,
+        })
+        if (snapshot.myLock) {
+          dispatch({
+            type: 'SET_MY_LOCK',
+            flightId,
+            lock: snapshot.myLock,
+          })
+        }
+      } catch (err) {
+        console.error('Failed to load seat snapshot:', err)
+      }
+    }
+
+    if (flightId && !Object.keys(seats).length) {
+      loadSeatSnapshot()
+    }
+  }, [flightId, clientId, seats, dispatch])
 
   if (!flight) {
     return <div>Cargando...</div>
@@ -42,6 +69,15 @@ export default function SeatMapPage({ flightId, onBackClick, onCheckout }: SeatM
 
     try {
       await api.seats.lock(flightId, seatNumber, clientId)
+      // Optimistically update the lock - will be confirmed by event stream
+      dispatch({
+        type: 'SET_MY_LOCK',
+        flightId,
+        lock: {
+          seat: seatNumber,
+          lockedUntil: new Date(Date.now() + 15 * 60000).toISOString(),
+        },
+      })
     } catch (err: any) {
       setError(err.message || 'Error al bloquear el asiento')
     } finally {

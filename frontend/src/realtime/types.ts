@@ -21,5 +21,6 @@ export type AppAction =
   | { type: 'SET_CLOCK_OFFSET'; offset: number }
   | { type: 'SET_FLIGHTS'; flights: FlightDTO[] }
   | { type: 'SET_SEAT_SNAPSHOT'; flightId: string; seats: SeatDTO[]; flight: FlightDTO }
+  | { type: 'SET_MY_LOCK'; flightId: string; lock: { seat: string; lockedUntil: string } | null }
   | { type: 'EVENT'; event: FlightEvent }
   | { type: 'CLEAR_MY_LOCK'; flightId: string }
