@@ -25,11 +25,11 @@ export default function SeatMapPage({ flightId, onBackClick, onCheckout }: SeatM
   useEffect(() => {
     const loadSeatSnapshot = async () => {
       try {
-        const snapshot = await api.flights.getSeatSnapshot(flightId, clientId)
+        const snapshot: any = await api.flights.getSeatSnapshot(flightId, clientId)
         dispatch({
           type: 'SET_SEAT_SNAPSHOT',
           flightId,
-          seats: snapshot.seats,
+          seats: snapshot.seats || [],
           flight: snapshot.flight,
         })
         if (snapshot.myLock) {

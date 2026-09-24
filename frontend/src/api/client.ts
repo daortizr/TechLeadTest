@@ -12,9 +12,12 @@ interface ApiError {
 async function fetchApi<T>(path: string, options: RequestInit & { clientId?: string; idempotencyKey?: string } = {}): Promise<T> {
   const { clientId, idempotencyKey, ...fetchOptions } = options
 
-  const headers: HeadersInit = {
+  const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...fetchOptions.headers,
+  }
+
+  if (typeof fetchOptions.headers === 'object' && fetchOptions.headers) {
+    Object.assign(headers, fetchOptions.headers)
   }
 
   if (clientId) {

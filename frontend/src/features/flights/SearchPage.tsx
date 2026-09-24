@@ -113,11 +113,11 @@ export default function SearchPage({ onSelectFlight }: { onSelectFlight: (flight
                   <span>Precio</span>
                 </div>
                 <div>
-                  <strong>{flight.availableSeats || 0}</strong>
+                  <strong>{flight.availableSeats ?? 0}</strong>
                   <span>
                     {flight.status === 'SOLD_OUT'
                       ? 'Vendido'
-                      : flight.availableSeats === 0
+                      : (flight.availableSeats ?? 0) === 0
                         ? 'Sin asientos'
                         : 'Asientos'}
                   </span>
@@ -127,9 +127,9 @@ export default function SearchPage({ onSelectFlight }: { onSelectFlight: (flight
               <div className="flight-actions">
                 <Button
                   onClick={() => onSelectFlight(flight.id)}
-                  disabled={flight.status !== 'ON_SALE' || flight.availableSeats === 0}
+                  disabled={flight.status !== 'ON_SALE' || (flight.availableSeats ?? 0) === 0}
                 >
-                  {flight.status === 'ON_SALE' && flight.availableSeats > 0 ? 'Ver asientos' : 'No disponible'}
+                  {flight.status === 'ON_SALE' && (flight.availableSeats ?? 0) > 0 ? 'Ver asientos' : 'No disponible'}
                 </Button>
               </div>
             </div>
