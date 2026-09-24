@@ -2,7 +2,9 @@ import express from 'express';
 import { dataSource } from './infraestructure/database/dataSource';
 import { config } from './infraestructure/config/env';
 import { logger } from './infraestructure/utilities';
-import { AppError } from './application/errorHandler';
+import { errorHandlerMiddleware } from './infraestructure/api/middlewares';
+import { createRouter } from './infraestructure/api/routes';
+import { sseHub } from './infraestructure/api/sse/SseHub';
 
 async function main() {
   try {
@@ -17,29 +19,14 @@ async function main() {
     // Middleware
     app.use(express.json());
 
-    // Health check
-    app.get('/api/health', (req, res) => {
-      res.json({ status: 'ok' });
-    });
+    // API routes
+    app.use('/api', createRouter());
 
-    // TODO: Add routes
-    // TODO: Add SSE handler
+    // SSE Hub
+    sseHub.start();
 
-    // Error handling middleware
-    app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
-      logger.error('Unhandled error', { error: err.message, stack: err.stack });
-
-      if (err instanceof AppError) {
-        return res.status(err.statusCode).json(err.toJSON());
-      }
-
-      res.status(500).json({
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Error interno del servidor'
-        }
-      });
-    });
+    // Error handling middleware (must be last)
+    app.use(errorHandlerMiddleware);
 
     // 404 handler
     app.use((req, res) => {
@@ -52,8 +39,18 @@ async function main() {
     });
 
     // Start server
-    app.listen(config.PORT, () => {
+    const server = app.listen(config.PORT, () => {
       logger.info(`Server running on port ${config.PORT}`);
+    });
+
+    // Graceful shutdown
+    process.on('SIGTERM', () => {
+      logger.info('SIGTERM received, shutting down gracefully');
+      sseHub.stop();
+      server.close(() => {
+        dataSource.destroy();
+        process.exit(0);
+      });
     });
   } catch (error) {
     logger.error('Failed to start server', { error: String(error) });
