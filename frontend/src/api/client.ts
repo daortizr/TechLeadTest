@@ -1,105 +1,122 @@
-import { FlightDTO, SeatSnapshotDTO, ReservationDTO, ErrorCode } from '@flight-reservations/shared'
+import type {
+  AirportDTO,
+  CheckoutDTO,
+  ErrorResponse,
+  FlightDTO,
+  LockDTO,
+  LockStagesDTO,
+  PassengerDTO,
+  PaymentDTO,
+  ReservationDTO,
+  SeatSnapshotDTO
+} from '@flight-reservations/shared'
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api'
+// Relative base: the browser talks to a single origin, so there is no CORS
+export const API_BASE: string = import.meta.env.VITE_API_URL || '/api'
 
-interface ApiError {
-  error: {
-    code: ErrorCode
-    message: string
+const ADMIN_KEY: string = import.meta.env.VITE_ADMIN_KEY || ''
+
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string,
+    message: string,
+    readonly details?: Record<string, unknown>
+  ) {
+    super(message)
+    this.name = 'ApiError'
   }
 }
 
-async function fetchApi<T>(path: string, options: RequestInit & { clientId?: string; idempotencyKey?: string } = {}): Promise<T> {
-  const { clientId, idempotencyKey, ...fetchOptions } = options
+interface RequestOptions {
+  method?: 'GET' | 'POST' | 'DELETE'
+  body?: unknown
+  clientId?: string
+  idempotencyKey?: string
+  admin?: boolean
+  signal?: AbortSignal
+}
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const headers: Record<string, string> = {}
+  if (options.body !== undefined) headers['Content-Type'] = 'application/json'
+  if (options.clientId) headers['X-Client-Id'] = options.clientId
+  if (options.idempotencyKey) headers['Idempotency-Key'] = options.idempotencyKey
+  if (options.admin) headers['X-Admin-Key'] = ADMIN_KEY
+
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      method: options.method ?? 'GET',
+      headers,
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      signal: options.signal
+    })
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'AbortError') throw error
+    throw new ApiError(0, 'NETWORK', 'No pudimos conectar con el servidor')
   }
 
-  if (typeof fetchOptions.headers === 'object' && fetchOptions.headers) {
-    Object.assign(headers, fetchOptions.headers)
+  if (response.status === 204) {
+    return undefined as T
   }
 
-  if (clientId) {
-    headers['X-Client-Id'] = clientId
-  }
-  if (idempotencyKey) {
-    headers['Idempotency-Key'] = idempotencyKey
-  }
-
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...fetchOptions,
-    headers,
-  })
+  const payload: unknown = await response.json().catch(() => null)
 
   if (!response.ok) {
-    const error: ApiError = await response.json()
-    throw {
-      status: response.status,
-      ...error.error,
-    }
+    const error = (payload as ErrorResponse | null)?.error
+    throw new ApiError(
+      response.status,
+      error?.code ?? 'UNKNOWN',
+      error?.message ?? 'Ocurrió un error inesperado',
+      error?.details
+    )
   }
 
-  return response.json()
+  return payload as T
+}
+
+export interface CreateReservationInput {
+  flightId: string
+  seat: string
+  passenger: PassengerDTO
+  payment: PaymentDTO
 }
 
 export const api = {
   airports: {
-    list: () => fetchApi<any[]>('/airports'),
+    list: (signal?: AbortSignal): Promise<AirportDTO[]> => request<AirportDTO[]>('/airports', { signal })
   },
 
   flights: {
-    search: (origin: string, destination: string, date: string) =>
-      fetchApi<FlightDTO[]>(`/flights?origin=${origin}&destination=${destination}&date=${date}`),
-
-    getSeatSnapshot: (flightId: string, clientId?: string) =>
-      fetchApi<SeatSnapshotDTO>(`/flights/${flightId}/seats`, { clientId }),
-
-    changeStatus: (flightId: string, status: string) =>
-      fetchApi(`/flights/${flightId}/status`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status }),
-      }),
+    search: (origin: string, destination: string, date: string, signal?: AbortSignal): Promise<FlightDTO[]> => {
+      const query = new URLSearchParams({ origin, destination, date })
+      return request<FlightDTO[]>(`/flights?${query.toString()}`, { signal })
+    },
+    seatSnapshot: (flightId: string, clientId?: string, signal?: AbortSignal): Promise<SeatSnapshotDTO> =>
+      request<SeatSnapshotDTO>(`/flights/${flightId}/seats`, { clientId, signal })
   },
 
   seats: {
-    lock: (flightId: string, seat: string, clientId: string) =>
-      fetchApi(`/flights/${flightId}/seats/${seat}/lock`, {
-        method: 'POST',
-        clientId,
-      }),
-
-    unlock: (flightId: string, seat: string, clientId: string) =>
-      fetchApi(`/flights/${flightId}/seats/${seat}/lock`, {
-        method: 'DELETE',
-        clientId,
-      }),
-
-    startCheckout: (flightId: string, seat: string, clientId: string) =>
-      fetchApi(`/flights/${flightId}/seats/${seat}/checkout`, {
-        method: 'POST',
-        clientId,
-      }),
+    lock: (flightId: string, seat: string, clientId: string): Promise<LockDTO> =>
+      request<LockDTO>(`/flights/${flightId}/seats/${seat}/lock`, { method: 'POST', clientId }),
+    unlock: (flightId: string, seat: string, clientId: string): Promise<void> =>
+      request<void>(`/flights/${flightId}/seats/${seat}/lock`, { method: 'DELETE', clientId }),
+    checkout: (flightId: string, seat: string, clientId: string): Promise<CheckoutDTO> =>
+      request<CheckoutDTO>(`/flights/${flightId}/seats/${seat}/checkout`, { method: 'POST', clientId })
   },
 
   reservations: {
-    create: (payload: {
-      flightId: string
-      seatNumber: string
-      email: string
-      clientId: string
-    }) =>
-      fetchApi<{ code: string }>('/reservations', {
-        method: 'POST',
-        body: JSON.stringify({
-          flightId: payload.flightId,
-          seat: payload.seatNumber,
-          passengerEmail: payload.email,
-        }),
-        clientId: payload.clientId,
-        idempotencyKey: `${payload.flightId}-${payload.seatNumber}`,
-      }),
-
-    getByCode: (code: string) => fetchApi<ReservationDTO>(`/reservations/${code}`),
+    create: (input: CreateReservationInput, clientId: string, idempotencyKey: string): Promise<ReservationDTO> =>
+      request<ReservationDTO>('/reservations', { method: 'POST', body: input, clientId, idempotencyKey }),
+    getByCode: (code: string, signal?: AbortSignal): Promise<ReservationDTO> =>
+      request<ReservationDTO>(`/reservations/${encodeURIComponent(code)}`, { signal })
   },
+
+  admin: {
+    cancelFlight: (flightId: string): Promise<FlightDTO> =>
+      request<FlightDTO>(`/admin/flights/${flightId}/cancel`, { method: 'POST', admin: true }),
+    lockStages: (flightId: string, signal?: AbortSignal): Promise<LockStagesDTO> =>
+      request<LockStagesDTO>(`/admin/flights/${flightId}/lock-stages`, { admin: true, signal })
+  }
 }

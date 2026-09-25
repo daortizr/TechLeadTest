@@ -1,0 +1,77 @@
+.login-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 560px;
+  margin: 32px auto 0;
+  padding: 48px 48px 44px;
+  border-radius: 20px;
+  text-align: center;
+}
+
+.login-card__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 88px;
+  margin-bottom: 20px;
+  border-radius: 20px;
+  background: var(--brand-red-tint);
+  color: var(--brand-red-strong);
+}
+
+.login-card__title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.login-card__subtitle {
+  margin-top: 8px;
+  color: var(--gray-500);
+  font-size: 1.125rem;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  margin-top: 36px;
+  text-align: left;
+}
+
+.login-form .btn {
+  min-height: 54px;
+  font-size: 1.125rem;
+}
+
+.login-form__message {
+  min-height: 0;
+}
+
+/* The failure is text plus an icon, next to the fields it concerns */
+.login-form__error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--brand-red-strong);
+  font-weight: 600;
+}
+
+@media (max-width: 480px) {
+  .login-card {
+    margin-top: 8px;
+    padding: 32px 20px 28px;
+  }
+
+  .login-card__icon {
+    width: 72px;
+    height: 72px;
+  }
+
+  .login-card__title {
+    font-size: 1.5rem;
+  }
+}

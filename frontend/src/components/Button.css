@@ -1,58 +1,64 @@
 .btn {
-  padding: 0.75rem 1.5rem;
-  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 22px;
+  border: 1.5px solid transparent;
   border-radius: var(--radius-md);
-  font-size: 1rem;
-  font-weight: 500;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
   cursor: pointer;
-  transition: all 0.2s ease;
-  font-family: inherit;
-
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--brand-red);
-    outline-offset: 2px;
-  }
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
-.btn-primary {
+.btn--full {
+  width: 100%;
+}
+
+.btn--primary {
   background: var(--brand-red);
+  border-color: var(--brand-red);
   color: var(--white);
-
-  &:hover:not(:disabled) {
-    background: var(--brand-red-strong);
-  }
 }
 
-.btn-secondary {
-  background: var(--gray-50);
+.btn--primary:hover:not(:disabled) {
+  background: var(--brand-red-strong);
+  border-color: var(--brand-red-strong);
+}
+
+.btn--outline {
+  background: var(--white);
+  border-color: var(--brand-red-strong);
+  color: var(--brand-red);
+}
+
+.btn--outline:hover:not(:disabled) {
+  background: var(--brand-red-tint);
+}
+
+.btn--neutral {
+  background: var(--white);
+  border-color: var(--gray-400);
   color: var(--ink);
-  border: 1px solid var(--gray-200);
-
-  &:hover:not(:disabled) {
-    background: var(--gray-200);
-  }
 }
 
-.btn-danger {
-  background: #DC2626;
-  color: var(--white);
-
-  &:hover:not(:disabled) {
-    background: #B91C1C;
-  }
+.btn--neutral:hover:not(:disabled) {
+  border-color: var(--ink);
 }
 
-.btn-sm {
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
+/* Disabled: gray fill, never red */
+.btn:disabled {
+  cursor: not-allowed;
+  background: var(--gray-200);
+  border-color: var(--gray-200);
+  color: var(--gray-500);
 }
 
-.btn-lg {
-  padding: 1rem 2rem;
-  font-size: 1.125rem;
+.btn--outline:disabled {
+  background: var(--white);
+  color: var(--gray-400);
 }

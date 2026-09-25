@@ -1,7 +1,23 @@
 import { FlightEvent } from '@flight-reservations/shared';
 
+export interface CardData {
+  cardNumber: string;
+  holderName: string;
+  expiry: string;
+  cvv: string;
+}
+
+// Thrown by a gateway when the card is declined
+export class PaymentDeclinedError extends Error {
+  constructor() {
+    super('PAYMENT_DECLINED');
+    this.name = 'PaymentDeclinedError';
+  }
+}
+
 export interface PaymentGateway {
-  authorize(idempotencyKey: string, amountCents: number, cardNumber: string, holderName: string, expiry: string, cvv: string): Promise<{ authorizationRef: string }>;
+  // Idempotent by key: repeating it returns the same authorization and never charges twice
+  authorize(idempotencyKey: string, amountCents: number, card: CardData): Promise<{ authorizationRef: string }>;
   void(authorizationRef: string): Promise<void>;
 }
 

@@ -1,8 +1,8 @@
+import { ErrorCode, FlightEvent } from '@flight-reservations/shared';
 import { UnlockSeatInputPort } from '../inputPorts';
-import { SeatRepository, UnitOfWork, EventPublisher } from '../../infraestructure/outputPorts';
-import { Logger } from '../../infraestructure/outputPorts';
+import { SeatRepository, UnitOfWork, EventPublisher, Logger } from '../../infraestructure/outputPorts';
 import { AppError } from '../errorHandler';
-import { ErrorCode, SeatReleasedEvent } from '@flight-reservations/shared';
+import { diagnoseSeat, publishAfterCommit } from '../helpers';
 
 export class UnlockSeatUseCase implements UnlockSeatInputPort {
   constructor(
@@ -13,35 +13,33 @@ export class UnlockSeatUseCase implements UnlockSeatInputPort {
   ) {}
 
   async execute(flightId: string, seat: string, clientId: string): Promise<void> {
-    try {
-      const events: SeatReleasedEvent[] = [];
+    const events: FlightEvent[] = [];
 
-      await this.unitOfWork.run(async (tx) => {
-        const unlockedSeat = await this.seatRepository.unlock(tx, flightId, seat, clientId);
+    await this.unitOfWork.run(async (tx) => {
+      const released = await this.seatRepository.release(tx, flightId, seat, clientId);
+      if (released) {
+        events.push({
+          type: 'seat.released',
+          flightId,
+          seat,
+          version: released.version,
+          reason: 'RELEASED'
+        });
+        return;
+      }
 
-        if (unlockedSeat) {
-          events.push({
-            type: 'seat.released',
-            flightId,
-            seat,
-            version: unlockedSeat.version,
-            reason: 'RELEASED'
-          });
-
-          this.logger.debug('Seat unlocked', { flightId, seat, clientId });
-          return;
-        }
-
-        // Diagnose: not locked by this client, or already free
+      const diagnosis = await this.seatRepository.diagnose(tx, flightId, seat, clientId);
+      const outcome = diagnoseSeat(diagnosis, 'RELEASE');
+      if (outcome.kind === 'SEAT_NOT_FOUND') {
+        throw AppError.notFound(ErrorCode.SEAT_NOT_FOUND, 'Asiento no encontrado');
+      }
+      if (outcome.kind === 'LOCK_NOT_OWNED') {
         throw AppError.forbidden(ErrorCode.LOCK_NOT_OWNED, 'El asiento no está bloqueado por ti');
-      });
+      }
+      // Already free, expired or released: idempotent, no event
+    });
 
-      // Publish events after commit
-      await this.eventPublisher.publishBatch(events);
-    } catch (error) {
-      if (error instanceof AppError) throw error;
-      this.logger.error('Failed to unlock seat', { error: String(error), flightId, seat });
-      throw AppError.internal('Error al liberar asiento');
-    }
+    await publishAfterCommit(this.eventPublisher, events, this.logger);
+    this.logger.debug('Seat unlock handled', { flightId, seat });
   }
 }

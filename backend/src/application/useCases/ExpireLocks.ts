@@ -1,11 +1,10 @@
 import { ExpireLocksInputPort } from '../inputPorts';
-import { SeatRepository, UnitOfWork, EventPublisher } from '../../infraestructure/outputPorts';
-import { Logger } from '../../infraestructure/outputPorts';
-import { SeatReleasedEvent } from '@flight-reservations/shared';
+import { SeatRepository, UnitOfWork, EventPublisher, Logger } from '../../infraestructure/outputPorts';
+import { publishAfterCommit } from '../helpers';
 
+// Notification mechanism of 7.4: an expired lock is already treated as free by every
+// acquire; this only releases the rows and tells the clients.
 export class ExpireLocksUseCase implements ExpireLocksInputPort {
-  private running = false;
-
   constructor(
     private seatRepository: SeatRepository,
     private unitOfWork: UnitOfWork,
@@ -13,39 +12,22 @@ export class ExpireLocksUseCase implements ExpireLocksInputPort {
     private logger: Logger
   ) {}
 
-  async execute(): Promise<void> {
-    // Prevent overlapping executions
-    if (this.running) {
-      this.logger.debug('Expire locks job already running, skipping');
-      return;
-    }
+  async execute(): Promise<number> {
+    const expired = await this.unitOfWork.run((tx) => this.seatRepository.expireLocks(tx));
+    if (expired.length === 0) return 0;
 
-    this.running = true;
-
-    try {
-      const events: SeatReleasedEvent[] = [];
-
-      await this.unitOfWork.run(async () => {
-        // In a full implementation, this would call a batch expire method on SeatRepository
-        // that executes the SQL: UPDATE seats SET status = 'AVAILABLE', locked_by = NULL, ...
-        // WHERE status = 'BLOCKED' AND locked_until <= now() RETURNING ...
-
-        // For now, we'll simulate it by reading all seats and filtering
-        // Real implementation would do this in one SQL query
-
-        this.logger.debug('Expiration job executed');
-      });
-
-      // Publish events after commit
-      if (events.length > 0) {
-        await this.eventPublisher.publishBatch(events);
-        this.logger.info('Locks expired', { count: events.length });
-      }
-    } catch (error) {
-      this.logger.error('Expiration job failed', { error: String(error) });
-      // Don't rethrow - the cron job should continue
-    } finally {
-      this.running = false;
-    }
+    await publishAfterCommit(
+      this.eventPublisher,
+      expired.map((seat) => ({
+        type: 'seat.released' as const,
+        flightId: seat.flightId,
+        seat: seat.seatNumber,
+        version: seat.version,
+        reason: 'EXPIRED' as const
+      })),
+      this.logger
+    );
+    this.logger.info('Locks expired', { count: expired.length });
+    return expired.length;
   }
 }

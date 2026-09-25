@@ -4,22 +4,20 @@
   "description": "Flight reservations backend",
   "private": true,
   "main": "dist/index.js",
-  "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
     "lint": "eslint src --ext .ts",
-    "test": "vitest",
-    "test:integration": "vitest run tests/integration",
+    "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
     "typecheck": "tsc --noEmit",
-    "migration:generate": "typeorm migration:generate",
-    "migration:run": "typeorm migration:run",
-    "migration:revert": "typeorm migration:revert",
-    "db:reset": "npm run migration:revert && npm run migration:run"
+    "db:reset": "tsx src/infraestructure/database/reset.ts"
   },
   "dependencies": {
     "@flight-reservations/shared": "file:../shared",
+    "dotenv": "^16.4.5",
     "express": "^4.18.2",
     "typeorm": "^0.3.17",
     "pg": "^8.11.3",

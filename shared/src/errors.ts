@@ -2,6 +2,9 @@ export enum ErrorCode {
   // 400
   INVALID_REQUEST = 'INVALID_REQUEST',
 
+  // 401
+  UNAUTHORIZED = 'UNAUTHORIZED',
+
   // 402
   PAYMENT_DECLINED = 'PAYMENT_DECLINED',
   PAYMENT_UNAVAILABLE = 'PAYMENT_UNAVAILABLE',
@@ -31,6 +34,7 @@ export enum ErrorCode {
 
 export const errorMessages: Record<ErrorCode, string> = {
   [ErrorCode.INVALID_REQUEST]: 'Solicitud inválida',
+  [ErrorCode.UNAUTHORIZED]: 'Clave de administrador inválida o faltante',
   [ErrorCode.PAYMENT_DECLINED]: 'Pago rechazado',
   [ErrorCode.PAYMENT_UNAVAILABLE]: 'Pasarela de pago no disponible',
   [ErrorCode.LOCK_NOT_OWNED]: 'El asiento no está bloqueado por ti',

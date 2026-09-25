@@ -1,84 +1,48 @@
-import { Router, Request, Response } from 'express';
-import { adminKeyMiddleware } from '../middlewares';
+import { Router } from 'express';
+import {
+  AdminController,
+  AirportController,
+  EventsController,
+  FlightController,
+  HealthController,
+  ReservationController,
+  SeatController
+} from '../controllers';
+import { adminKeyMiddleware, clientIdMiddleware, idempotencyKeyMiddleware } from '../middlewares';
 
-export function createRouter(): Router {
+export interface Controllers {
+  health: HealthController;
+  airports: AirportController;
+  flights: FlightController;
+  seats: SeatController;
+  reservations: ReservationController;
+  events: EventsController;
+  admin: AdminController;
+}
+
+// Mounted under /api. Business rules live in the use cases: routes only wire HTTP to controllers.
+export function createRouter(controllers: Controllers): Router {
   const router = Router();
+  const requireClient = clientIdMiddleware(true);
+  const optionalClient = clientIdMiddleware(false);
 
-  // Public endpoints
-  router.get('/health', (req: Request, res: Response) => {
-    res.json({ status: 'ok' });
-  });
+  // Public
+  router.get('/health', controllers.health.check);
+  router.get('/airports', controllers.airports.list);
+  router.get('/flights', controllers.flights.search);
+  router.get('/flights/:id/seats', optionalClient, controllers.flights.seatSnapshot);
+  router.post('/flights/:id/seats/:seat/lock', requireClient, controllers.seats.lock);
+  router.delete('/flights/:id/seats/:seat/lock', requireClient, controllers.seats.unlock);
+  router.post('/flights/:id/seats/:seat/checkout', requireClient, controllers.seats.checkout);
+  router.post('/reservations', requireClient, idempotencyKeyMiddleware, controllers.reservations.create);
+  router.get('/reservations/:code', controllers.reservations.get);
+  router.get('/events', controllers.events.stream);
 
-  router.get('/airports', async (req: Request, res: Response) => {
-    // Controller.listAirports()
-    res.json([]);
-  });
-
-  router.get('/flights', async (req: Request, res: Response) => {
-    // Validate and extract query: origin, destination, date
-    // Controller.searchFlights(origin, destination, date)
-    res.json([]);
-  });
-
-  router.get('/flights/:id/seats', async (req: Request, res: Response) => {
-    // Controller.getSeatSnapshot(id, clientId from header or undefined)
-    res.json({});
-  });
-
-  router.post('/flights/:id/seats/:seat/lock', async (req: Request, res: Response) => {
-    // Validate X-Client-Id header
-    // Controller.lockSeat(id, seat, clientId)
-    res.json({});
-  });
-
-  router.delete('/flights/:id/seats/:seat/lock', async (req: Request, res: Response) => {
-    // Validate X-Client-Id header
-    // Controller.unlockSeat(id, seat, clientId)
-    res.status(204).send();
-  });
-
-  router.post('/flights/:id/seats/:seat/checkout', async (req: Request, res: Response) => {
-    // Validate X-Client-Id header
-    // Controller.startCheckout(id, seat, clientId)
-    res.json({});
-  });
-
-  router.post('/reservations', async (req: Request, res: Response) => {
-    // Validate X-Client-Id and Idempotency-Key headers
-    // Validate request body with createReservationSchema
-    // Controller.createReservation(...)
-    res.status(201).json({});
-  });
-
-  router.get('/reservations/:code', async (req: Request, res: Response) => {
-    // Controller.getReservation(code)
-    res.json({});
-  });
-
-  router.get('/events', async (req: Request, res: Response) => {
-    // Set up SSE connection
-    // res.setHeader('Content-Type', 'text/event-stream');
-    // res.setHeader('Cache-Control', 'no-cache');
-    // res.setHeader('Connection', 'keep-alive');
-    // res.setHeader('X-Accel-Buffering', 'no');
-    // res.flushHeaders();
-    // SSE handler implementation here
-  });
-
-  // Administrative endpoints (require X-Admin-Key)
+  // Administrative: a single middleware guards everything under /admin
   const adminRouter = Router();
   adminRouter.use(adminKeyMiddleware);
-
-  adminRouter.post('/flights/:id/cancel', async (req: Request, res: Response) => {
-    // Controller.changeFlightStatus(id, 'cancel')
-    res.json({});
-  });
-
-  adminRouter.get('/flights/:id/lock-stages', async (req: Request, res: Response) => {
-    // Controller.getLockStages(id)
-    res.json({ flightId: '', selecting: 0, checkout: 0 });
-  });
-
+  adminRouter.post('/flights/:id/cancel', controllers.admin.cancelFlight);
+  adminRouter.get('/flights/:id/lock-stages', controllers.admin.lockStages);
   router.use('/admin', adminRouter);
 
   return router;

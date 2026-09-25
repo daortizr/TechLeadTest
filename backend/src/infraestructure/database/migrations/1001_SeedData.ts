@@ -1,130 +1,274 @@
-import { MigrationInterface, QueryRunner } from 'typeorm';
+import { MigrationInterface, QueryRunner, In } from 'typeorm';
+import { v4 as uuidv4 } from 'uuid';
+import { AirportEntity } from '../entities/AirportEntity';
+import { FlightEntity } from '../entities/FlightEntity';
+import { SeatEntity } from '../entities/SeatEntity';
+import { ReservationEntity } from '../entities/ReservationEntity';
+import { IdempotencyKeyEntity } from '../entities/IdempotencyKeyEntity';
+import { PaymentEntity } from '../entities/PaymentEntity';
 
-export class SeedData1001 implements MigrationInterface {
+// Deterministic PRNG (mulberry32): the seed's occupancy looks random but is
+// reproducible across every `db:reset`, since the seed is fixed.
+function mulberry32(seed: number): () => number {
+  let state = seed;
+  return function () {
+    state |= 0;
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const SEED = 20260101;
+const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const ROWS = 8;
+const COLUMNS = ['A', 'B', 'C', 'D', 'E', 'F'];
+const SEATS_PER_FLIGHT = ROWS * COLUMNS.length;
+const SEED_CLIENT_PREFIX = 'seed-client-';
+const SEED_IDEMPOTENCY_PREFIX = 'idempotency-seed-';
+const FLIGHT_CODES = ['AV101', 'AV102', 'AV103', 'AV104', 'AV105', 'AV106', 'AV107'];
+const AIRPORT_CODES = ['BOG', 'MDE', 'CLO', 'CTG', 'BAQ', 'BGA'];
+
+const HOUR = 60 * 60 * 1000;
+const MINUTE = 60 * 1000;
+const BOGOTA_OFFSET = 5 * HOUR; // UTC-5, no daylight saving
+
+// Midnight (Bogotá time) `daysFromToday` days after the database's current Bogotá date, as epoch ms
+function startOfDayInBogota(databaseNow: Date, daysFromToday: number): number {
+  const wallClock = new Date(databaseNow.getTime() - BOGOTA_OFFSET);
+  return (
+    Date.UTC(wallClock.getUTCFullYear(), wallClock.getUTCMonth(), wallClock.getUTCDate() + daysFromToday) +
+    BOGOTA_OFFSET
+  );
+}
+
+interface SeedFlightSpec {
+  code: string;
+  origin: string;
+  destination: string;
+  departureAt: Date;
+  arrivalAt: Date;
+  priceCents: number;
+  status: 'ON_SALE' | 'SOLD_OUT';
+  reservedSeatCount: number;
+}
+
+export class SeedData1700000000001 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // Insert airports
-    await queryRunner.query(`
-      INSERT INTO airports (code, name, city, timezone) VALUES
-        ('BOG', 'El Dorado', 'Bogotá', 'America/Bogota'),
-        ('MDE', 'José María Córdova', 'Medellín', 'America/Bogota'),
-        ('CLO', 'Alfonso Bonilla Aragón', 'Cali', 'America/Bogota'),
-        ('CTG', 'Rafael Núñez', 'Cartagena', 'America/Bogota'),
-        ('BAQ', 'Ernesto Cortissoz', 'Barranquilla', 'America/Bogota'),
-        ('BGA', 'Eldorado', 'Bucaramanga', 'America/Bogota')
-    `);
+    const random = mulberry32(SEED);
+    const usedCodes = new Set<string>();
+    // Every time comes from the database clock, as "tomorrow" and "the day after" in Bogotá
+    const clock: { now: Date }[] = await queryRunner.query('SELECT now() AS now');
+    const tomorrow = startOfDayInBogota(clock[0].now, 1);
+    const dayAfterTomorrow = startOfDayInBogota(clock[0].now, 2);
 
-    // Insert flights
-    await queryRunner.query(`
-      INSERT INTO flights (code, origin, destination, departure_at, arrival_at, price_cents, currency, status)
-      VALUES
-        ('AV101', 'BOG', 'MDE', now() + interval '1 day' + interval '6 hours 30 minutes', now() + interval '1 day' + interval '7 hours 50 minutes', 250000, 'COP', 'ON_SALE'),
-        ('AV102', 'BOG', 'MDE', now() + interval '1 day' + interval '12 hours', now() + interval '1 day' + interval '13 hours 20 minutes', 250000, 'COP', 'ON_SALE'),
-        ('AV103', 'BOG', 'MDE', now() + interval '1 day' + interval '18 hours', now() + interval '1 day' + interval '19 hours 20 minutes', 250000, 'COP', 'ON_SALE'),
-        ('AV104', 'MDE', 'BOG', now() + interval '1 day' + interval '9 hours', now() + interval '1 day' + interval '10 hours 20 minutes', 250000, 'COP', 'ON_SALE'),
-        ('AV105', 'BOG', 'CTG', now() + interval '2 days' + interval '8 hours', now() + interval '2 days' + interval '9 hours 30 minutes', 350000, 'COP', 'ON_SALE'),
-        ('AV106', 'BOG', 'CLO', now() + interval '1 day' + interval '15 hours', now() + interval '1 day' + interval '16 hours 15 minutes', 280000, 'COP', 'SOLD_OUT'),
-        ('AV107', 'BOG', 'BAQ', now() + interval '2 days' + interval '14 hours', now() + interval '2 days' + interval '15 hours 30 minutes', 320000, 'COP', 'ON_SALE')
-    `);
+    const airportRepo = queryRunner.manager.getRepository(AirportEntity);
+    const flightRepo = queryRunner.manager.getRepository(FlightEntity);
+    const seatRepo = queryRunner.manager.getRepository(SeatEntity);
+    const reservationRepo = queryRunner.manager.getRepository(ReservationEntity);
+    const idempotencyRepo = queryRunner.manager.getRepository(IdempotencyKeyEntity);
+    const paymentRepo = queryRunner.manager.getRepository(PaymentEntity);
 
-    // Insert seats for all flights (48 per flight: 8 rows, 6 columns A-F)
-    await queryRunner.query(`
-      INSERT INTO seats (flight_id, seat_number, row_number, column_letter, status)
-      SELECT
-        f.id,
-        (row_num::text || col_letter::text) as seat_number,
-        row_num,
-        col_letter,
-        'AVAILABLE'
-      FROM flights f
-      CROSS JOIN LATERAL (
-        SELECT row_num, col_letter
-        FROM generate_series(1, 8) AS row_num
-        CROSS JOIN LATERAL (
-          SELECT unnest(ARRAY['A', 'B', 'C', 'D', 'E', 'F']::text[]) AS col_letter
-        ) AS cols
-      ) AS seats
-    `);
+    await airportRepo.insert([
+      { code: 'BOG', name: 'El Dorado', city: 'Bogotá', timezone: 'America/Bogota' },
+      { code: 'MDE', name: 'José María Córdova', city: 'Medellín', timezone: 'America/Bogota' },
+      { code: 'CLO', name: 'Alfonso Bonilla Aragón', city: 'Cali', timezone: 'America/Bogota' },
+      { code: 'CTG', name: 'Rafael Núñez', city: 'Cartagena', timezone: 'America/Bogota' },
+      { code: 'BAQ', name: 'Ernesto Cortissoz', city: 'Barranquilla', timezone: 'America/Bogota' },
+      { code: 'BGA', name: 'Eldorado', city: 'Bucaramanga', timezone: 'America/Bogota' }
+    ]);
 
-    // Insert some reserved seats for AV101 (12 seats)
-    await queryRunner.query(`
-      WITH target_flight AS (
-        SELECT id FROM flights WHERE code = 'AV101'
-      ),
-      reserved_codes AS (
-        SELECT
-          'SEED' || substr(md5(random()::text), 1, 4) as code_base,
-          row_number() over () as rnum
-        FROM generate_series(1, 12)
-      )
-      INSERT INTO reservations (code, flight_id, seat_number, passenger_name, passenger_email, client_id, price_cents, currency)
-      SELECT
-        rc.code_base || CASE WHEN rc.rnum < 10 THEN '0' ELSE '' END || rc.rnum as code,
-        tf.id,
-        (row_num::text || col_letter::text),
-        'Pasajero ' || rc.rnum,
-        'pasajero' || rc.rnum || '@example.com',
-        'seed-client-' || rc.rnum,
-        250000,
-        'COP'
-      FROM target_flight tf
-      CROSS JOIN reserved_codes rc
-      CROSS JOIN LATERAL (
-        SELECT
-          row_num,
-          col_letter,
-          row_number() over () as seat_index
-        FROM generate_series(1, 3) AS row_num
-        CROSS JOIN LATERAL (
-          SELECT unnest(ARRAY['A', 'B', 'C', 'D']::text[]) AS col_letter
-        ) AS cols
-      ) AS seats
-      WHERE seats.seat_index <= 12
-    `);
+    const flightSpecs: SeedFlightSpec[] = [
+      {
+        code: 'AV101',
+        origin: 'BOG',
+        destination: 'MDE',
+        departureAt: new Date(tomorrow + 6 * HOUR + 30 * MINUTE),
+        arrivalAt: new Date(tomorrow + 7 * HOUR + 50 * MINUTE),
+        priceCents: 41200000,
+        status: 'ON_SALE',
+        reservedSeatCount: 18 // partial random
+      },
+      {
+        code: 'AV102',
+        origin: 'BOG',
+        destination: 'MDE',
+        departureAt: new Date(tomorrow + 12 * HOUR),
+        arrivalAt: new Date(tomorrow + 13 * HOUR + 20 * MINUTE),
+        priceCents: 38900000,
+        status: 'ON_SALE',
+        reservedSeatCount: 0 // empty
+      },
+      {
+        code: 'AV103',
+        origin: 'BOG',
+        destination: 'MDE',
+        departureAt: new Date(tomorrow + 18 * HOUR),
+        arrivalAt: new Date(tomorrow + 19 * HOUR + 20 * MINUTE),
+        priceCents: 45500000,
+        status: 'ON_SALE',
+        reservedSeatCount: 24 // partial random
+      },
+      {
+        code: 'AV104',
+        origin: 'MDE',
+        destination: 'BOG',
+        departureAt: new Date(tomorrow + 9 * HOUR),
+        arrivalAt: new Date(tomorrow + 10 * HOUR + 20 * MINUTE),
+        priceCents: 38000000,
+        status: 'ON_SALE',
+        reservedSeatCount: 0 // empty
+      },
+      {
+        code: 'AV105',
+        origin: 'BOG',
+        destination: 'CTG',
+        departureAt: new Date(dayAfterTomorrow + 8 * HOUR),
+        arrivalAt: new Date(dayAfterTomorrow + 9 * HOUR + 30 * MINUTE),
+        priceCents: 52000000,
+        status: 'ON_SALE',
+        reservedSeatCount: SEATS_PER_FLIGHT - 2 // almost full
+      },
+      {
+        code: 'AV106',
+        origin: 'BOG',
+        destination: 'CLO',
+        departureAt: new Date(tomorrow + 15 * HOUR),
+        arrivalAt: new Date(tomorrow + 16 * HOUR + 15 * MINUTE),
+        priceCents: 44500000,
+        status: 'SOLD_OUT',
+        reservedSeatCount: SEATS_PER_FLIGHT // full
+      },
+      {
+        code: 'AV107',
+        origin: 'BOG',
+        destination: 'BAQ',
+        departureAt: new Date(dayAfterTomorrow + 14 * HOUR),
+        arrivalAt: new Date(dayAfterTomorrow + 15 * HOUR + 30 * MINUTE),
+        priceCents: 49800000,
+        status: 'ON_SALE',
+        reservedSeatCount: SEATS_PER_FLIGHT - 2 // almost full
+      }
+    ];
 
-    // Update seats to RESERVED for the reserved seats
-    await queryRunner.query(`
-      UPDATE seats
-      SET status = 'RESERVED'
-      WHERE (flight_id, seat_number) IN (
-        SELECT flight_id, seat_number FROM reservations
-      )
-    `);
+    let passengerCounter = 0;
 
-    // Insert idempotency keys for the reserved seats
-    await queryRunner.query(`
-      INSERT INTO idempotency_keys (key, client_id, request_hash, status, reservation_id, created_at)
-      SELECT
-        'idempotency-' || md5(random()::text),
-        r.client_id,
-        'hash-' || md5(r.id::text),
-        'COMPLETED',
-        r.id,
-        now()
-      FROM reservations r
-    `);
+    for (const spec of flightSpecs) {
+      const flightId = uuidv4();
+      await flightRepo.insert({
+        id: flightId,
+        code: spec.code,
+        origin: spec.origin,
+        destination: spec.destination,
+        departure_at: spec.departureAt,
+        arrival_at: spec.arrivalAt,
+        price_cents: spec.priceCents,
+        currency: 'COP',
+        status: spec.status,
+        version: 0
+      });
 
-    // Insert payments for the reserved seats
-    await queryRunner.query(`
-      INSERT INTO payments (idempotency_key, reservation_id, authorization_ref, amount_cents, status, created_at)
-      SELECT
-        ik.key,
-        r.id,
-        'SEED-' || md5(random()::text),
-        r.price_cents,
-        'AUTHORIZED',
-        now()
-      FROM reservations r
-      JOIN idempotency_keys ik ON ik.reservation_id = r.id
-    `);
+      const seatNumbers: string[] = [];
+      for (let row = 1; row <= ROWS; row++) {
+        for (const column of COLUMNS) {
+          seatNumbers.push(`${row}${column}`);
+        }
+      }
+
+      await seatRepo.insert(
+        seatNumbers.map((seatNumber) => ({
+          flight_id: flightId,
+          seat_number: seatNumber,
+          row_number: parseInt(seatNumber, 10),
+          column_letter: seatNumber.slice(-1),
+          status: 'AVAILABLE',
+          version: 0
+        }))
+      );
+
+      // Deterministic Fisher-Yates shuffle to pick which seats are reserved
+      const shuffled = [...seatNumbers];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      const reservedSeats = shuffled.slice(0, spec.reservedSeatCount);
+
+      for (const seatNumber of reservedSeats) {
+        passengerCounter += 1;
+        const clientId = `${SEED_CLIENT_PREFIX}${passengerCounter}`;
+
+        let code = '';
+        do {
+          code = Array.from({ length: 6 }, () => CODE_ALPHABET[Math.floor(random() * CODE_ALPHABET.length)]).join('');
+        } while (usedCodes.has(code));
+        usedCodes.add(code);
+
+        const reservationId = uuidv4();
+        await reservationRepo.insert({
+          id: reservationId,
+          code,
+          flight_id: flightId,
+          seat_number: seatNumber,
+          passenger_name: `Pasajero ${passengerCounter}`,
+          passenger_email: `pasajero${passengerCounter}@example.com`,
+          passenger_document_type: 'CC',
+          passenger_document_number: String(1000000000 + passengerCounter),
+          passenger_phone: `+57300${String(passengerCounter).padStart(7, '0')}`,
+          client_id: clientId,
+          price_cents: spec.priceCents,
+          currency: 'COP',
+        });
+
+        await seatRepo.update({ flight_id: flightId, seat_number: seatNumber }, { status: 'RESERVED' });
+
+        const idempotencyKey = `${SEED_IDEMPOTENCY_PREFIX}${passengerCounter}`;
+        await idempotencyRepo.insert({
+          key: idempotencyKey,
+          client_id: clientId,
+          request_hash: `hash-${reservationId}`,
+          status: 'COMPLETED',
+          reservation_id: reservationId,
+        });
+
+        await paymentRepo.insert({
+          id: uuidv4(),
+          idempotency_key: idempotencyKey,
+          reservation_id: reservationId,
+          authorization_ref: `SEED-${reservationId}`,
+          amount_cents: spec.priceCents,
+          status: 'AUTHORIZED',
+        });
+      }
+    }
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    // Delete in reverse order of foreign keys
-    await queryRunner.query(`DELETE FROM payments WHERE idempotency_key LIKE 'idempotency-%'`);
-    await queryRunner.query(`DELETE FROM idempotency_keys WHERE key LIKE 'idempotency-%'`);
-    await queryRunner.query(`DELETE FROM reservations WHERE code LIKE 'SEED%'`);
-    await queryRunner.query(`UPDATE seats SET status = 'AVAILABLE' WHERE status = 'RESERVED'`);
-    await queryRunner.query(`DELETE FROM flights WHERE code IN ('AV101', 'AV102', 'AV103', 'AV104', 'AV105', 'AV106', 'AV107')`);
-    await queryRunner.query(`DELETE FROM airports WHERE code IN ('BOG', 'MDE', 'CLO', 'CTG', 'BAQ', 'BGA')`);
+    const airportRepo = queryRunner.manager.getRepository(AirportEntity);
+    const flightRepo = queryRunner.manager.getRepository(FlightEntity);
+    const seatRepo = queryRunner.manager.getRepository(SeatEntity);
+    const reservationRepo = queryRunner.manager.getRepository(ReservationEntity);
+    const idempotencyRepo = queryRunner.manager.getRepository(IdempotencyKeyEntity);
+    const paymentRepo = queryRunner.manager.getRepository(PaymentEntity);
+
+    const flights = await flightRepo.find({ where: { code: In(FLIGHT_CODES) } });
+    const flightIds = flights.map((flight) => flight.id);
+
+    const reservations = flightIds.length ? await reservationRepo.find({ where: { flight_id: In(flightIds) } }) : [];
+    const reservationIds = reservations.map((reservation) => reservation.id);
+
+    if (reservationIds.length) {
+      await paymentRepo.delete({ reservation_id: In(reservationIds) });
+      await idempotencyRepo.delete({ reservation_id: In(reservationIds) });
+      await reservationRepo.delete({ id: In(reservationIds) });
+    }
+
+    if (flightIds.length) {
+      await seatRepo.delete({ flight_id: In(flightIds) });
+    }
+
+    await flightRepo.delete({ code: In(FLIGHT_CODES) });
+    await airportRepo.delete({ code: In(AIRPORT_CODES) });
   }
 }
