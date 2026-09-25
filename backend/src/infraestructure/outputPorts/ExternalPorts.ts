@@ -17,7 +17,7 @@ export class PaymentDeclinedError extends Error {
 
 export interface PaymentGateway {
   // Idempotent by key: repeating it returns the same authorization and never charges twice
-  authorize(idempotencyKey: string, amountCents: number, card: CardData): Promise<{ authorizationRef: string }>;
+  authorize(idempotencyKey: string, amount: number, card: CardData): Promise<{ authorizationRef: string }>;
   void(authorizationRef: string): Promise<void>;
 }
 

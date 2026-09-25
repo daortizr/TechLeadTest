@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { api, ApiError } from '../../../api/client'
-import { AlertIcon, Button } from '../../../components'
+import { AlertIcon, ArrowLeftIcon, Button } from '../../../components'
 import { useAirports } from '../../../hooks/useAirports'
 import { useServerNow } from '../../../hooks/useServerNow'
 import { formatTime } from '../../../lib/format'
@@ -22,6 +22,8 @@ const D = ADMIN_LABELS.dashboard
 // holds no seats, so nothing here is "mine".
 export default function FlightDashboardPage(): React.ReactElement {
   const { flightId = '' } = useParams()
+  const navigate = useNavigate()
+  const location = useLocation()
   const { state, dispatch } = useStore()
   const airports = useAirports()
   const now = useServerNow(1000)
@@ -66,6 +68,8 @@ export default function FlightDashboardPage(): React.ReactElement {
   const reload = useCallback(() => load(true), [load])
   useResync(reload)
 
+  const goBack = () => (location.key !== 'default' ? navigate(-1) : navigate('/admin/dashboard'))
+
   const activity = state.activity[flightId] ?? []
   const { stages, failed } = useLockStages(flightId, activity[0]?.id ?? null)
 
@@ -104,6 +108,11 @@ export default function FlightDashboardPage(): React.ReactElement {
 
   return (
     <div className="dash-page">
+      <button type="button" className="back-link" onClick={goBack}>
+        <ArrowLeftIcon size={18} />
+        {D.back}
+      </button>
+
       {stale && (
         <p className="dash-stale" role="status">
           <AlertIcon size={16} />

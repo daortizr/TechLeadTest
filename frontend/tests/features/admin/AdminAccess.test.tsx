@@ -164,7 +164,7 @@ describe('the guard and where you land after signing in', () => {
     loginAdmin('admin', 'admin')
     renderAt('/admin/nothing-here')
     expect(screen.getByRole('heading', { name: 'Página no encontrada' })).toBeInTheDocument()
-    expect(screen.getByRole('navigation', { name: 'Navegación administrativa' })).toBeInTheDocument()
+    expect(screen.getByText('Panel administrativo')).toBeInTheDocument()
   })
 
   it('the session persists across a page reload', () => {
@@ -178,50 +178,14 @@ describe('the guard and where you land after signing in', () => {
 })
 
 describe('the admin frame', () => {
-  it('has its own header with Dashboard, Simulación and Salir, and marks the current section', () => {
+  it('has the admin title and the connection indicator, and no tab row', () => {
     loginAdmin('admin', 'admin')
     renderAt('/admin/dashboard')
 
-    const nav = screen.getByRole('navigation', { name: 'Navegación administrativa' })
-    expect(within(nav).getByRole('link', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page')
-    expect(within(nav).getByRole('link', { name: 'Simulación' })).not.toHaveAttribute('aria-current')
-    expect(within(nav).getByRole('button', { name: 'Salir' })).toBeInTheDocument()
+    expect(screen.getByText('Panel administrativo')).toBeInTheDocument()
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Salir' })).not.toBeInTheDocument()
     expect(document.querySelector('.connection')).not.toBeNull()
-  })
-
-  it('the Dashboard section stays marked on a flight\'s dashboard', () => {
-    loginAdmin('admin', 'admin')
-    renderAt('/admin/dashboard/4c438a42')
-    expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page')
-  })
-
-  it('moves between sections', async () => {
-    loginAdmin('admin', 'admin')
-    renderAt('/admin/dashboard')
-    fireEvent.click(screen.getByRole('link', { name: 'Simulación' }))
-    expect(await screen.findByRole('heading', { name: 'Simulación de vuelos' })).toBeInTheDocument()
-  })
-
-  it('Salir ends the session and returns to the login, which the guard then enforces again', async () => {
-    loginAdmin('admin', 'admin')
-    renderAt('/admin/flights')
-    fireEvent.click(screen.getByRole('button', { name: 'Salir' }))
-
-    expect(await screen.findByRole('heading', { name: 'Acceso administrativo' })).toBeInTheDocument()
-    expect(isAdminLoggedIn()).toBe(false)
-    expect(sessionStorage.getItem('admin-session')).toBeNull()
-    expect(screen.queryByRole('navigation', { name: 'Navegación administrativa' })).not.toBeInTheDocument()
-  })
-
-  it('cannot be reached with the browser Back button after leaving', async () => {
-    loginAdmin('admin', 'admin')
-    const view = renderAt('/admin/flights')
-    fireEvent.click(screen.getByRole('button', { name: 'Salir' }))
-    await screen.findByRole('heading', { name: 'Acceso administrativo' })
-    view.unmount()
-
-    renderAt('/admin/flights')
-    expect(screen.getByRole('heading', { name: 'Acceso administrativo' })).toBeInTheDocument()
   })
 })
 

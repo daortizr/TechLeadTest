@@ -47,7 +47,7 @@ function snapshot(): SeatSnapshotDTO {
       destination: 'MDE',
       departureAt: inSeconds(86_400),
       arrivalAt: inSeconds(90_000),
-      priceCents: 41_200_000,
+      price: 412_000,
       currency: 'COP',
       status: FlightStatus.ON_SALE,
       version: 0,
@@ -101,6 +101,13 @@ describe('/admin/dashboard/:flightId', () => {
     expect(await screen.findByLabelText('3 eligiendo, 4 pagando')).toBeInTheDocument()
     expect(screen.getByText(/Todavía no hay actividad/)).toBeInTheDocument()
     expect(document.querySelectorAll('.heat-cell[data-seat]')).toHaveLength(12)
+  })
+
+  it('has a back button and no tab row', async () => {
+    renderPage()
+    expect(await screen.findByRole('button', { name: 'Volver a la búsqueda' })).toBeInTheDocument()
+    expect(screen.queryByRole('navigation', { name: 'Navegación administrativa' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Salir' })).not.toBeInTheDocument()
   })
 
   it('requests the snapshot without a client id: the administrator holds no seats', async () => {

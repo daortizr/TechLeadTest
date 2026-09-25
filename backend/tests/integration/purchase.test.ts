@@ -97,7 +97,7 @@ describe('purchase (7.3)', () => {
         flight: expect.objectContaining({ id: av102, code: 'AV102', status: 'ON_SALE' }),
         seat: '1A',
         passengerName: 'Ana Gómez',
-        priceCents: 38900000, // AV102: COP 389.000
+        price: 389000, // AV102: COP 389.000
         currency: 'COP',
         createdAt: expect.any(String)
       });
@@ -484,7 +484,7 @@ describe('purchase (7.3)', () => {
         [key, client, hash]
       );
       await query(
-        `INSERT INTO payments (idempotency_key, authorization_ref, amount_cents, status) VALUES ($1, 'AUTH-crashed', 250000, 'AUTHORIZED')`,
+        `INSERT INTO payments (idempotency_key, authorization_ref, amount, status) VALUES ($1, 'AUTH-crashed', 250000, 'AUTHORIZED')`,
         [key]
       );
 

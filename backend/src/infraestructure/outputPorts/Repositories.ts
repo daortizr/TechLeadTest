@@ -47,8 +47,8 @@ export interface ReservationRepository {
 }
 
 export interface PaymentRepository {
-  insertAuthorized(tx: TransactionContext, idempotencyKey: string, authorizationRef: string, amountCents: number): Promise<void>;
-  insertDeclined(tx: TransactionContext, idempotencyKey: string, amountCents: number): Promise<void>;
+  insertAuthorized(tx: TransactionContext, idempotencyKey: string, authorizationRef: string, amount: number): Promise<void>;
+  insertDeclined(tx: TransactionContext, idempotencyKey: string, amount: number): Promise<void>;
   findAuthorizedWithoutReservation(tx: TransactionContext, idempotencyKey: string): Promise<Payment | null>;
   // Number of rows linked; T2 requires exactly one
   linkReservation(tx: TransactionContext, idempotencyKey: string, reservationId: string): Promise<number>;

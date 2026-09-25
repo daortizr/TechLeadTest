@@ -23,7 +23,7 @@ const snapshot: SeatSnapshotDTO = {
     destination: 'MDE',
     departureAt: '2026-09-25T11:30:00.000Z',
     arrivalAt: '2026-09-25T12:50:00.000Z',
-    priceCents: 41200000,
+    price: 412000,
     currency: 'COP',
     status: FlightStatus.ON_SALE,
     version: 0

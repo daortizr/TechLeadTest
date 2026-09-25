@@ -35,7 +35,7 @@ const flight = (overrides: Partial<FlightDTO> = {}): FlightDTO => ({
   destination: 'MDE',
   departureAt: '2026-09-25T17:00:00.000Z',
   arrivalAt: '2026-09-25T18:20:00.000Z',
-  priceCents: 38_900_000,
+  price: 389_000,
   currency: 'COP',
   status: FlightStatus.ON_SALE,
   version: 0,
@@ -71,7 +71,7 @@ const ticket = (): ReservationDTO => ({
   flight: flight(),
   seat: '3C',
   passengerName: 'Laura Gómez Peña',
-  priceCents: 38_900_000,
+  price: 389_000,
   currency: 'COP',
   createdAt: new Date().toISOString()
 })

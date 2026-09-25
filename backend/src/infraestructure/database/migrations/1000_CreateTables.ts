@@ -28,14 +28,14 @@ export class CreateTables1700000000000 implements MigrationInterface {
           { name: 'destination', type: 'char', length: '3', isNullable: false },
           { name: 'departure_at', type: 'timestamptz', isNullable: false },
           { name: 'arrival_at', type: 'timestamptz', isNullable: false },
-          { name: 'price_cents', type: 'integer', isNullable: false },
+          { name: 'price', type: 'integer', isNullable: false },
           { name: 'currency', type: 'char', length: '3', isNullable: false, default: "'COP'" },
           { name: 'status', type: 'text', isNullable: false, default: "'ON_SALE'" },
           { name: 'version', type: 'integer', isNullable: false, default: 0 },
           { name: 'created_at', type: 'timestamptz', isNullable: false, default: 'now()' }
         ],
         checks: [
-          new TableCheck({ name: 'CHK_flights_price_positive', expression: 'price_cents > 0' }),
+          new TableCheck({ name: 'CHK_flights_price_positive', expression: 'price > 0' }),
           new TableCheck({ name: 'CHK_flights_status', expression: "status IN ('ON_SALE','SOLD_OUT','CANCELLED')" }),
           new TableCheck({ name: 'CHK_flights_origin_destination', expression: 'origin <> destination' }),
           new TableCheck({ name: 'CHK_flights_arrival_after_departure', expression: 'arrival_at > departure_at' })
@@ -127,7 +127,7 @@ export class CreateTables1700000000000 implements MigrationInterface {
           { name: 'passenger_document_number', type: 'text', isNullable: false },
           { name: 'passenger_phone', type: 'text', isNullable: false },
           { name: 'client_id', type: 'text', isNullable: false },
-          { name: 'price_cents', type: 'integer', isNullable: false },
+          { name: 'price', type: 'integer', isNullable: false },
           { name: 'currency', type: 'char', length: '3', isNullable: false },
           { name: 'created_at', type: 'timestamptz', isNullable: false, default: 'now()' }
         ],
@@ -135,7 +135,7 @@ export class CreateTables1700000000000 implements MigrationInterface {
           new TableCheck({ name: 'CHK_reservations_code', expression: "code ~ '^[A-HJ-NP-Z2-9]{6}$'" }),
           new TableCheck({ name: 'CHK_reservations_document_type', expression: "passenger_document_type IN ('CC','CE','PASSPORT')" }),
           new TableCheck({ name: 'CHK_reservations_phone', expression: "passenger_phone ~ '^\\+[1-9][0-9]{7,14}$'" }),
-          new TableCheck({ name: 'CHK_reservations_price_positive', expression: 'price_cents > 0' })
+          new TableCheck({ name: 'CHK_reservations_price_positive', expression: 'price > 0' })
         ],
         uniques: [new TableUnique({ name: 'UQ_reservations_flight_seat', columnNames: ['flight_id', 'seat_number'] })]
       }),
@@ -197,12 +197,12 @@ export class CreateTables1700000000000 implements MigrationInterface {
           { name: 'idempotency_key', type: 'text', isNullable: false },
           { name: 'reservation_id', type: 'uuid', isNullable: true },
           { name: 'authorization_ref', type: 'text', isNullable: true },
-          { name: 'amount_cents', type: 'integer', isNullable: false },
+          { name: 'amount', type: 'integer', isNullable: false },
           { name: 'status', type: 'text', isNullable: false },
           { name: 'created_at', type: 'timestamptz', isNullable: false, default: 'now()' }
         ],
         checks: [
-          new TableCheck({ name: 'CHK_payments_amount_positive', expression: 'amount_cents > 0' }),
+          new TableCheck({ name: 'CHK_payments_amount_positive', expression: 'amount > 0' }),
           new TableCheck({ name: 'CHK_payments_status', expression: "status IN ('AUTHORIZED','DECLINED','VOIDED','VOID_FAILED')" })
         ]
       }),

@@ -93,7 +93,7 @@ export class CreateReservationUseCase implements CreateReservationInputPort {
 
       // Phase C: charge (idempotent by key) and record the authorization before T2
       if (!authorization) {
-        authorization = await this.authorize(command, payable.priceCents);
+        authorization = await this.authorize(command, payable.price);
       }
 
       // Phase D and E
@@ -146,15 +146,15 @@ export class CreateReservationUseCase implements CreateReservationInputPort {
     throw AppError.conflict(ErrorCode.LOCK_EXPIRED_OR_NOT_OWNED, 'Bloqueo vencido o no es tuyo');
   }
 
-  private async authorize(command: CreateReservationCommand, amountCents: number): Promise<Authorization> {
+  private async authorize(command: CreateReservationCommand, amount: number): Promise<Authorization> {
     const { idempotencyKey } = command;
 
     let authorizationRef: string;
     try {
-      authorizationRef = await this.authorizeWithRetry(command, amountCents);
+      authorizationRef = await this.authorizeWithRetry(command, amount);
     } catch (error) {
       if (error instanceof PaymentDeclinedError) {
-        await this.recordDeclined(idempotencyKey, amountCents);
+        await this.recordDeclined(idempotencyKey, amount);
         throw AppError.paymentDeclined();
       }
       this.logger.error('Payment gateway unavailable', { idempotencyKey });
@@ -163,7 +163,7 @@ export class CreateReservationUseCase implements CreateReservationInputPort {
 
     try {
       await this.unitOfWork.run((tx) =>
-        this.paymentRepository.insertAuthorized(tx, idempotencyKey, authorizationRef, amountCents)
+        this.paymentRepository.insertAuthorized(tx, idempotencyKey, authorizationRef, amount)
       );
     } catch (error) {
       // The authorization could not be recorded, so nothing else would ever void it
@@ -176,8 +176,8 @@ export class CreateReservationUseCase implements CreateReservationInputPort {
   }
 
   // The gateway is idempotent by key, so repeating an authorize that got no answer is safe
-  private async authorizeWithRetry(command: CreateReservationCommand, amountCents: number): Promise<string> {
-    const attempt = () => this.paymentGateway.authorize(command.idempotencyKey, amountCents, command.payment);
+  private async authorizeWithRetry(command: CreateReservationCommand, amount: number): Promise<string> {
+    const attempt = () => this.paymentGateway.authorize(command.idempotencyKey, amount, command.payment);
     try {
       return (await attempt()).authorizationRef;
     } catch (error) {
@@ -187,9 +187,9 @@ export class CreateReservationUseCase implements CreateReservationInputPort {
     }
   }
 
-  private async recordDeclined(idempotencyKey: string, amountCents: number): Promise<void> {
+  private async recordDeclined(idempotencyKey: string, amount: number): Promise<void> {
     try {
-      await this.unitOfWork.run((tx) => this.paymentRepository.insertDeclined(tx, idempotencyKey, amountCents));
+      await this.unitOfWork.run((tx) => this.paymentRepository.insertDeclined(tx, idempotencyKey, amount));
     } catch (error) {
       this.logger.error('Could not record the declined payment', { idempotencyKey, error: String(error) });
     }
@@ -244,7 +244,7 @@ export class CreateReservationUseCase implements CreateReservationInputPort {
           passenger.documentNumber,
           passenger.phone,
           clientId,
-          payable.priceCents,
+          payable.price,
           payable.currency,
           new Date()
         )

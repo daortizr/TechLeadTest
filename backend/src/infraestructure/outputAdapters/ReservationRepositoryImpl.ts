@@ -15,7 +15,7 @@ export class ReservationRepositoryImpl implements ReservationRepository {
         INSERT INTO reservations (
           id, code, flight_id, seat_number, passenger_name, passenger_email,
           passenger_document_type, passenger_document_number, passenger_phone,
-          client_id, price_cents, currency
+          client_id, price, currency
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         ON CONFLICT (code) DO NOTHING
@@ -32,7 +32,7 @@ export class ReservationRepositoryImpl implements ReservationRepository {
           reservation.passengerDocumentNumber,
           reservation.passengerPhone,
           reservation.clientId,
-          reservation.priceCents,
+          reservation.price,
           reservation.currency
         ]
       )

@@ -6,7 +6,7 @@ import type { MyLock } from '../../realtime'
 
 interface SelectionPanelProps {
   lock: MyLock | null
-  priceCents: number
+  price: number
   currency: string
   // The flight can still be bought and nothing is in flight
   canContinue: boolean
@@ -18,7 +18,7 @@ interface SelectionPanelProps {
 
 export default function SelectionPanel({
   lock,
-  priceCents,
+  price,
   currency,
   canContinue,
   busy,
@@ -40,7 +40,7 @@ export default function SelectionPanel({
       </p>
 
       {lock ? (
-        <p className="selection__hint">{formatPrice(priceCents, currency)}</p>
+        <p className="selection__hint">{formatPrice(price, currency)}</p>
       ) : (
         <p className="selection__hint">{SEAT_LABELS.chooseSeat}</p>
       )}

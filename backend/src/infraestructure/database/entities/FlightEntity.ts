@@ -24,7 +24,7 @@ export class FlightEntity {
   arrival_at!: Date;
 
   @Column({ type: 'integer' })
-  price_cents!: number;
+  price!: number;
 
   @Column({ type: 'char', length: 3, default: 'COP' })
   currency!: string;

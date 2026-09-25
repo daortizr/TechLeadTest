@@ -31,7 +31,7 @@ const flight = (overrides: Partial<FlightDTO> = {}): FlightDTO => ({
   destination: 'MDE',
   departureAt: '2026-09-25T11:30:00.000Z',
   arrivalAt: '2026-09-25T12:50:00.000Z',
-  priceCents: 41_200_000,
+  price: 412_000,
   currency: 'COP',
   status: FlightStatus.ON_SALE,
   version: 0,
@@ -124,7 +124,7 @@ describe('/admin/dashboard', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Ver dashboard, vuelo AV 101' }))
 
     expect(await screen.findByRole('heading', { level: 1, name: /AV 101/ })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('button', { name: 'Volver a la búsqueda' })).toBeInTheDocument()
     expect(screen.queryByLabelText('Origen')).not.toBeInTheDocument()
   })
 
@@ -169,8 +169,8 @@ describe('/admin/dashboard', () => {
   it('has the admin header, not the public one', async () => {
     renderAt('/admin/dashboard')
     await screen.findByText('AV 101')
-    const nav = screen.getByRole('navigation', { name: 'Navegación administrativa' })
-    expect(within(nav).getByRole('button', { name: 'Salir' })).toBeInTheDocument()
+    expect(screen.getByText('Panel administrativo')).toBeInTheDocument()
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument()
   })
 
   it('is guarded: without a session it goes to the login and comes back after signing in', async () => {

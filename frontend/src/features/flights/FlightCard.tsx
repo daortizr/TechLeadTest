@@ -67,7 +67,7 @@ export default function FlightCard({ flight, originCity, destinationCity, action
 
       <p className="flight-card__seats">{seatsLabel(available, total)}</p>
 
-      <p className="flight-card__price">{formatPrice(flight.priceCents, flight.currency)}</p>
+      <p className="flight-card__price">{formatPrice(flight.price, flight.currency)}</p>
 
       <div className="flight-card__action">
         <Button

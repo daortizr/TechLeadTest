@@ -38,6 +38,7 @@ Decisiones tomadas por criterio propio durante el diseño, que cambiaron o compl
 | Reinicio del bloqueo al pulsar "Comprar" | No estaba contemplado | Se pidió reiniciarlo; la IA advirtió del riesgo de retener asientos y se limitó a una sola extensión |
 | Pago como pantalla propia | Ofrecía pantalla o modal | Pantalla propia |
 | Acceso al dashboard | Proponía clave de administrador | Ruta administrativa separada con login `admin`/`admin`, sin servicio de autenticación |
+| Estado "retrasado" del vuelo | El enunciado lo menciona como ejemplo de cambio de estado; la IA lo señaló como posible faltante | No modelarlo: el sistema monitorea la venta, no la operación. La regla de tiempo real se cumple con los estados que existen (`SOLD_OUT`, `CANCELLED`) y está cubierta por pruebas en `/` |
 | Estructura del backend | Capas simples por módulo | Arquitectura hexagonal con `application`, `domain` e `infraestructure` |
 | Estilo gráfico | Sin propuesta previa | Combinar el blanco y el rojo de Davivienda |
 | Datos del pasajero | Nombre y correo | Ampliar a nombre, correo, documento (tipo `CC`, `CE` o pasaporte y número) y teléfono internacional |
@@ -65,7 +66,9 @@ Casos en los que la IA proporcionó una propuesta incorrecta o subóptima y cóm
 | 6 | Términos "eligiendo/pagando" frente a `SELECTING`/`CHECKOUT`, y "ocupados" frente a `RESERVED` | Nomenclatura distinta entre interfaz, código y base de datos | Glosario único y `lib/labels.ts` | Claude Code, al revisar el documento |
 | 7 | `FOR UPDATE` sobre la fila del vuelo | Candado más fuerte de lo necesario | `FOR NO KEY UPDATE` y análisis explícito de contención | Claude Code, al revisar el documento |
 | 8 | Margen de 10 s antes de cobrar solo en el servidor | El usuario veía tiempo restante en pantalla pero recibía un error al pagar en los últimos 10 s | `payableUntil` y bloqueo de 5:10 para que el usuario tenga 5:00 útiles | [completar] |
-| 9 | [completar con casos de código generado] | [completar] | [completar] | [completar] |
+| 9 | Las pruebas de integración del bloqueo se guardaron en `SeatLocking.test.ts`, nombre que ya estaba en la lista de pruebas obsoletas excluidas de Vitest | Las 24 pruebas de concurrencia del bloqueo no se ejecutaban y los resultados "en verde" no las incluían | Se quitó el archivo de la lista de exclusión; ahora corren con las demás (95 de integración) | Claude Code, al notar que faltaba el archivo en el listado |
+| 10 | Semilla con fechas relativas al primer arranque | Con un volumen de un día anterior, la búsqueda por defecto devolvía vacío | `refreshDemoData` regenera solo los vuelos semilla al arrancar, con prueba de integración | Claude Code, al probar el stack de Docker |
+| 11 | [completar con casos de código generado] | [completar] | [completar] | [completar] |
 
 ## 5. Impacto
 

@@ -35,7 +35,7 @@ export class ReservationEntity {
   client_id!: string;
 
   @Column({ type: 'integer' })
-  price_cents!: number;
+  price!: number;
 
   @Column({ type: 'char', length: 3 })
   currency!: string;

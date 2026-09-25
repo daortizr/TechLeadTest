@@ -223,7 +223,7 @@ erDiagram
     char(3) destination FK
     timestamptz departure_at
     timestamptz arrival_at
-    int price_cents
+    int price
     char(3) currency
     text status
     int version
@@ -250,7 +250,7 @@ erDiagram
     text passenger_document_number
     text passenger_phone
     text client_id
-    int price_cents
+    int price
     char(3) currency
     timestamptz created_at
   }
@@ -267,7 +267,7 @@ erDiagram
     text idempotency_key FK
     uuid reservation_id FK
     text authorization_ref
-    int amount_cents
+    int amount
     text status
     timestamptz created_at
   }
@@ -292,7 +292,7 @@ CREATE TABLE flights (
   destination   CHAR(3) NOT NULL REFERENCES airports(code) ON DELETE RESTRICT,
   departure_at  TIMESTAMPTZ NOT NULL,
   arrival_at    TIMESTAMPTZ NOT NULL,
-  price_cents   INTEGER NOT NULL CHECK (price_cents > 0),   -- unidad menor; el frontend divide por 100
+  price   INTEGER NOT NULL CHECK (price > 0),   -- pesos enteros (COP no usa decimales)
   currency      CHAR(3) NOT NULL DEFAULT 'COP',
   status        TEXT NOT NULL DEFAULT 'ON_SALE'
                 CHECK (status IN ('ON_SALE','SOLD_OUT','CANCELLED')),
@@ -337,7 +337,7 @@ CREATE TABLE reservations (
   passenger_document_number TEXT NOT NULL,
   passenger_phone           TEXT NOT NULL CHECK (passenger_phone ~ '^\+[1-9][0-9]{7,14}$'),
   client_id       TEXT NOT NULL,
-  price_cents     INTEGER NOT NULL CHECK (price_cents > 0),
+  price     INTEGER NOT NULL CHECK (price > 0),
   currency        CHAR(3) NOT NULL,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (flight_id, seat_number),
@@ -361,7 +361,7 @@ CREATE TABLE payments (
   idempotency_key   TEXT NOT NULL REFERENCES idempotency_keys(key) ON DELETE RESTRICT,
   reservation_id    UUID REFERENCES reservations(id) ON DELETE RESTRICT,
   authorization_ref TEXT,
-  amount_cents      INTEGER NOT NULL CHECK (amount_cents > 0),
+  amount      INTEGER NOT NULL CHECK (amount > 0),
   status            TEXT NOT NULL
                     CHECK (status IN ('AUTHORIZED','DECLINED','VOIDED','VOID_FAILED')),
   created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -413,7 +413,7 @@ Los vuelos 1 a 3 comparten ruta y día para que la búsqueda muestre una lista c
 
 Cada asiento reservado del seed lleva datos ficticios de pasajero que cumplen las validaciones (documento y teléfono `+57…`), un código de reserva del alfabeto permitido, su fila en `payments` (`AUTHORIZED`, con `authorization_ref` `SEED-…`) y su fila en `idempotency_keys` (`COMPLETED`), para que la conciliación pase desde el primer arranque.
 
-Como las fechas se calculan al ejecutarse, el seed corre solo con un volumen vacío. Si el volumen es de días anteriores, los vuelos estarán en el pasado: `npm run db:reset` restablece la demo.
+Como las fechas se calculan al ejecutarse, el seed corre con un volumen vacío. Para que un volumen de días anteriores no deje la demo en el pasado, al arrancar el backend `refreshDemoData` compara el primer vuelo semilla con el inicio de "mañana" (hora de Bogotá): si ya pasó, borra solo los vuelos semilla (`AV101` a `AV107`) con sus reservas, pagos y claves, y vuelve a sembrar. Los demás vuelos no se tocan, y si los vuelos semilla no existen no hace nada. `npm run db:reset` sigue restableciendo todo.
 
 ## 6. Máquinas de estado
 
@@ -615,7 +615,7 @@ Si la clave ya existía: `COMPLETED` con el mismo hash → se reconstruye y devu
 
 **Fase C: cobrar y registrar la autorización.**
 
-1. `authorize(idempotencyKey, amountCents, tarjeta)`. El contrato del puerto exige que sea **idempotente por clave**: repetirlo devuelve la misma autorización y nunca cobra dos veces. Nunca se llama a la pasarela dentro de una transacción.
+1. `authorize(idempotencyKey, amount, tarjeta)`. El contrato del puerto exige que sea **idempotente por clave**: repetirlo devuelve la misma autorización y nunca cobra dos veces. Nunca se llama a la pasarela dentro de una transacción.
 2. Rechazo → `INSERT` en `payments` con estado `DECLINED`, clave `FAILED` y `402 PAYMENT_DECLINED`; el bloqueo se conserva.
 3. Autorizado → `INSERT` en `payments` con estado `AUTHORIZED` (con `authorization_ref` y sin `reservation_id`), **en autocommit y antes de la fase D**. Así la autorización queda registrada de forma durable aunque `T2` falle o el proceso caiga; es lo que permite compensar y conciliar.
 
@@ -811,7 +811,7 @@ Toda la API vive bajo el prefijo `/api`. Formato de error: `{ "error": { "code":
 | `DELETE /api/flights/:id/seats/:seat/lock` | Liberar el propio bloqueo (idempotente: `204` si ya estaba libre) | 403 `LOCK_NOT_OWNED`; 404 |
 | `POST /api/flights/:id/seats/:seat/checkout` | Reiniciar el bloqueo una sola vez; responde `{ lockedUntil, payableUntil, version }` | 409 `LOCK_EXPIRED_OR_NOT_OWNED`, `FLIGHT_NOT_BOOKABLE`; 404; 400 |
 | `POST /api/reservations` | Compra (`X-Client-Id`, `Idempotency-Key`). Cuerpo: `flightId`, `seat`, `passenger` (`fullName`, `email`, `documentType`, `documentNumber`, `phone`) y `payment` (`holderName`, `cardNumber`, `expiry`, `cvv`) | 402 `PAYMENT_DECLINED`; 409 `LOCK_EXPIRED_OR_NOT_OWNED`, `FLIGHT_NOT_BOOKABLE`, `REQUEST_IN_PROGRESS`; 422 `IDEMPOTENCY_KEY_MISMATCH`; 503 `PAYMENT_UNAVAILABLE`; 500 `INTERNAL_ERROR`; 400; 404 |
-| `GET /api/reservations/:code` | Boleto: `{ code, flight (con su estado), seat, passengerName, priceCents, currency, createdAt }`. **Nunca** devuelve documento, teléfono ni correo | 404 |
+| `GET /api/reservations/:code` | Boleto: `{ code, flight (con su estado), seat, passengerName, price, currency, createdAt }`. **Nunca** devuelve documento, teléfono ni correo | 404 |
 | `GET /api/events` | Stream SSE | — |
 
 La respuesta `201` de `POST /api/reservations` tiene la misma forma que el boleto.
@@ -849,7 +849,7 @@ La fecha se interpreta en la zona horaria del aeropuerto de origen y se conviert
 
 ```sql
 SELECT f.id, f.code, f.origin, f.destination, f.departure_at, f.arrival_at,
-       f.price_cents, f.currency, f.status, f.version,
+       f.price, f.currency, f.status, f.version,
        COUNT(*) FILTER (WHERE s.status = 'AVAILABLE'
                            OR (s.status = 'BLOCKED' AND s.locked_until <= now())) AS available_seats
 FROM flights f
@@ -979,7 +979,7 @@ Es una vista derivada del mismo store que usa el mapa; **no tiene datos propios*
 ### 10.8 Transversal
 
 - Un encabezado común con indicador de conexión ("En vivo", "Reconectando…") y avisos temporales.
-- Formateadores: precios en COP (`price_cents / 100`) y horas en `America/Bogota`.
+- Formateadores: precios en COP (pesos enteros, sin dividir) y horas en `America/Bogota`.
 - Solo español. Responsive: búsqueda, mapa, pago y boleto se prueban en 375 px; el dashboard es prioridad de escritorio.
 - Accesibilidad: foco visible, control por teclado, estados que no dependen solo del color, `aria-live` para cambios en tiempo real.
 
@@ -1180,7 +1180,7 @@ Debe contener, como exige el enunciado: (1) instrucciones para ejecutar el proye
 | `init.sql` y `seed.sql` | Herramienta de migraciones | Suficiente para el prototipo |
 | Reglas de importación con ESLint | Solo disciplina | La arquitectura se verifica automáticamente |
 
-**Límites conscientes:** sin autenticación real (login del cliente y clave compartida que viaja en el código del frontend); datos personales (documento, teléfono y correo) guardados sin cifrar; pasajero desnormalizado en la reserva y un asiento por reserva; cancelar un vuelo con reservas no las anula ni las reembolsa; sin seguimiento de la operación del vuelo (solo de su venta) ni manejo de cambios de horario; una pestaña puede volver a bloquear un asiento al vencer el anterior (sin autenticación no se puede impedir); EventBus en memoria (una sola instancia); feed de actividad solo en el cliente; boleto solo en pantalla y sin consulta por código; solo español; pago simulado sin verificación Luhn; el seed depende de la fecha del primer arranque.
+**Límites conscientes:** sin autenticación real (login del cliente y clave compartida que viaja en el código del frontend); datos personales (documento, teléfono y correo) guardados sin cifrar; pasajero desnormalizado en la reserva y un asiento por reserva; cancelar un vuelo con reservas no las anula ni las reembolsa; sin seguimiento de la operación del vuelo (solo de su venta) ni manejo de cambios de horario; una pestaña puede volver a bloquear un asiento al vencer el anterior (sin autenticación no se puede impedir); EventBus en memoria (una sola instancia); feed de actividad solo en el cliente; boleto solo en pantalla y sin consulta por código; solo español; pago simulado sin verificación Luhn; el seed se regenera solo al arrancar, cuando ya es de un día anterior, y borra las reservas hechas sobre los vuelos semilla.
 
 **Evolución hacia varias instancias:** reemplazar la implementación del `EventBus` por una basada en `LISTEN/NOTIFY` de PostgreSQL o en Redis pub/sub (el puerto no cambia); los bloqueos con expiración podrían pasar a Redis; autenticación real con roles (JWT); réplicas de lectura para snapshots; outbox transaccional para los eventos.
 

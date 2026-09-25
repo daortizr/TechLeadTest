@@ -7,8 +7,7 @@ const OBSOLETE_TESTS = [
   'tests/integration/ConcurrentReservations.test.ts',
   'tests/integration/EventPublishing.test.ts',
   'tests/integration/Idempotency.test.ts',
-  'tests/integration/ReservationFlow.test.ts',
-  'tests/integration/SeatLocking.test.ts'
+  'tests/integration/ReservationFlow.test.ts'
 ];
 
 // Unit tests need no database. Integration tests run against real PostgreSQL, in their own

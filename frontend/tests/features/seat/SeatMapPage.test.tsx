@@ -34,7 +34,7 @@ const flight = (overrides: Partial<FlightDTO> = {}): FlightDTO => ({
   destination: 'MDE',
   departureAt: inSeconds(86_400),
   arrivalAt: inSeconds(90_000),
-  priceCents: 41_200_000,
+  price: 412_000,
   currency: 'COP',
   status: FlightStatus.ON_SALE,
   version: 0,

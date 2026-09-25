@@ -226,7 +226,7 @@ export const ADMIN_LABELS = {
     notFound: 'No encontramos este vuelo.',
     loadError: 'No pudimos cargar el dashboard.',
     retry: 'Reintentar',
-    back: 'Volver a buscar vuelos',
+    back: 'Volver a la búsqueda',
     staleSince: (time: string): string => `Datos desactualizados desde las ${time}`,
     staleUnknown: 'Sin conexión en vivo: los datos pueden estar desactualizados.'
   },

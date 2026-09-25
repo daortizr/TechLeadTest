@@ -16,7 +16,7 @@ export interface FlightDTO {
   destination: string;
   departureAt: string;
   arrivalAt: string;
-  priceCents: number;
+  price: number;
   currency: string;
   status: FlightStatus;
   version: number;
@@ -66,7 +66,7 @@ export interface ReservationDTO {
   flight: FlightDTO;
   seat: string;
   passengerName: string;
-  priceCents: number;
+  price: number;
   currency: string;
   createdAt: string;
 }

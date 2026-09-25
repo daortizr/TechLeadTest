@@ -57,8 +57,8 @@ export async function resetState(): Promise<void> {
   await query(`UPDATE flights SET status = CASE WHEN code = 'AV106' THEN 'SOLD_OUT' ELSE 'ON_SALE' END, version = 0`);
   // The seed's payments were removed above: recreate them so seeded reservations stay reconciled
   await query(
-    `INSERT INTO payments (idempotency_key, reservation_id, authorization_ref, amount_cents, status)
-     SELECT ik.key, r.id, 'SEED-' || r.id, r.price_cents, 'AUTHORIZED'
+    `INSERT INTO payments (idempotency_key, reservation_id, authorization_ref, amount, status)
+     SELECT ik.key, r.id, 'SEED-' || r.id, r.price, 'AUTHORIZED'
      FROM reservations r JOIN idempotency_keys ik ON ik.reservation_id = r.id`
   );
 }

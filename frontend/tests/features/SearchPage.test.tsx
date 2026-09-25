@@ -34,7 +34,7 @@ function flight(overrides: Partial<FlightDTO> = {}): FlightDTO {
     destination: 'MDE',
     departureAt: '2026-09-25T11:30:00.000Z',
     arrivalAt: '2026-09-25T12:50:00.000Z',
-    priceCents: 41200000,
+    price: 412000,
     currency: 'COP',
     status: FlightStatus.ON_SALE,
     version: 0,
@@ -76,7 +76,7 @@ describe('SearchPage', () => {
         id: 'f2',
         code: 'AV102',
         availableSeats: 48,
-        priceCents: 38900000,
+        price: 389000,
         departureAt: '2026-09-25T17:00:00.000Z',
         arrivalAt: '2026-09-25T18:20:00.000Z'
       })
@@ -235,6 +235,50 @@ describe('SearchPage', () => {
 
     expect(await screen.findByText('Vendido')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Agotado/ })).toBeDisabled()
+  })
+
+  it('a live cancellation disables the action and explains why, without reloading', async () => {
+    renderPage()
+    await screen.findByText('AV 101')
+    // Opening the stream triggers one quiet resync; only calls after it count
+    act(() => FakeEventSource.latest().open())
+    await waitFor(() => expect(searchMock).toHaveBeenCalledTimes(2))
+    searchMock.mockClear()
+
+    act(() => {
+      FakeEventSource.latest().emit('flight.updated', {
+        type: 'flight.updated',
+        flightId: 'f1',
+        status: FlightStatus.CANCELLED,
+        availableSeats: 0,
+        version: 2
+      })
+    })
+
+    expect(await screen.findByText('Cancelado')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /No disponible/ })).toBeDisabled()
+    expect(screen.getByText('Este vuelo fue cancelado')).toBeInTheDocument()
+    expect(searchMock).not.toHaveBeenCalled()
+  })
+
+  it('ignores a flight.updated older than what it already shows', async () => {
+    searchMock.mockResolvedValue([flight({ version: 5 })])
+    renderPage()
+    await screen.findByText('AV 101')
+
+    act(() => {
+      FakeEventSource.latest().open()
+      FakeEventSource.latest().emit('flight.updated', {
+        type: 'flight.updated',
+        flightId: 'f1',
+        status: FlightStatus.CANCELLED,
+        availableSeats: 0,
+        version: 3
+      })
+    })
+
+    expect(screen.queryByText('Cancelado')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Ver asientos/ })).toBeEnabled()
   })
 
   it('reloads the results quietly when the stream reconnects', async () => {

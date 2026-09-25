@@ -128,7 +128,7 @@ export default function SeatMapPage(): React.ReactElement {
       <div className="seat-layout">
         <SelectionPanel
           lock={myLock}
-          priceCents={flight.priceCents}
+          price={flight.price}
           currency={flight.currency}
           canContinue={readOnlyReason === null}
           busy={busy}

@@ -1,6 +1,7 @@
 import { dataSource } from './infraestructure/database/dataSource';
 import { config } from './infraestructure/config/env';
 import { buildContainer } from './infraestructure/config/container';
+import { refreshDemoData } from './infraestructure/database/refreshDemoData';
 import { LockExpirationJob } from './infraestructure/cron/lockExpirationJob';
 import { logger } from './infraestructure/utilities';
 import { createApp } from './app';
@@ -10,6 +11,7 @@ async function main(): Promise<void> {
     await dataSource.initialize();
     await dataSource.runMigrations();
     logger.info('Database initialized and migrations run');
+    await refreshDemoData(dataSource);
 
     const container = buildContainer(dataSource);
     const expirationJob = new LockExpirationJob(container.expireLocks, logger, config.expirationJobIntervalMs);

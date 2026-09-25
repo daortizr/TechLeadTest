@@ -6,7 +6,7 @@ import { FlightStatus } from '@flight-reservations/shared'
 
 describe('formatPrice', () => {
   it('divides the minor unit by 100 and formats Colombian pesos without decimals', () => {
-    const text = formatPrice(41_200_000).replace(/\s/g, ' ')
+    const text = formatPrice(412_000).replace(/\s/g, ' ')
     expect(text).toContain('412.000')
     expect(text).toContain('$')
     expect(text).not.toContain(',')

@@ -7,7 +7,7 @@ import { config } from '../config/env';
 export class FakePaymentGateway implements PaymentGateway {
   private authorizations: Map<string, string> = new Map();
 
-  async authorize(idempotencyKey: string, _amountCents: number, card: CardData): Promise<{ authorizationRef: string }> {
+  async authorize(idempotencyKey: string, _amount: number, card: CardData): Promise<{ authorizationRef: string }> {
     if (config.paymentLatencyMs > 0) {
       await new Promise((resolve) => setTimeout(resolve, config.paymentLatencyMs));
     }

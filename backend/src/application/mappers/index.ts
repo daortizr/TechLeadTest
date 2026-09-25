@@ -29,7 +29,7 @@ export const FlightMapper = {
       destination: flight.destination,
       departureAt: flight.departureAt.toISOString(),
       arrivalAt: flight.arrivalAt.toISOString(),
-      priceCents: flight.priceCents,
+      price: flight.price,
       currency: flight.currency,
       status: flight.status,
       version: flight.version,
@@ -74,7 +74,7 @@ export const ReservationMapper = {
       flight,
       seat: reservation.seatNumber,
       passengerName: reservation.passengerName,
-      priceCents: reservation.priceCents,
+      price: reservation.price,
       currency: reservation.currency,
       createdAt: reservation.createdAt.toISOString()
     };

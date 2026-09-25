@@ -6,7 +6,7 @@ export class Payment {
     readonly idempotencyKey: string,
     readonly reservationId: string | null,
     readonly authorizationRef: string | null,
-    readonly amountCents: number,
+    readonly amount: number,
     readonly status: PaymentStatus,
     readonly createdAt: Date
   ) {}

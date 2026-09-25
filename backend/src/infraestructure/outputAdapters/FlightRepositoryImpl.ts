@@ -26,7 +26,7 @@ export class FlightRepositoryImpl implements FlightRepository {
       await manager.query(
         `
         SELECT f.id, f.code, f.origin, f.destination, f.departure_at, f.arrival_at,
-               f.price_cents, f.currency, f.status, f.version, f.created_at,
+               f.price, f.currency, f.status, f.version, f.created_at,
                COUNT(*) FILTER (WHERE s.status = 'AVAILABLE'
                                    OR (s.status = 'BLOCKED' AND s.locked_until <= now())) AS available_seats,
                COUNT(*) AS total_seats

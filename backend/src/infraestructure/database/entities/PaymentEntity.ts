@@ -17,7 +17,7 @@ export class PaymentEntity {
   authorization_ref!: string | null;
 
   @Column({ type: 'integer' })
-  amount_cents!: number;
+  amount!: number;
 
   @Column({ type: 'text' })
   status!: string;

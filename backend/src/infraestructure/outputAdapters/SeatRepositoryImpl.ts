@@ -245,10 +245,10 @@ export class SeatRepositoryImpl implements SeatRepository {
     marginSeconds: number
   ): Promise<PayableLock | null> {
     const manager = UnitOfWorkImpl.getManager(tx);
-    const rows = returningRows<{ price_cents: number; currency: string }>(
+    const rows = returningRows<{ price: number; currency: string }>(
       await manager.query(
         `
-        SELECT f.price_cents, f.currency
+        SELECT f.price, f.currency
         FROM seats s
         JOIN flights f ON f.id = s.flight_id
         WHERE s.flight_id = $1 AND s.seat_number = $2
@@ -259,7 +259,7 @@ export class SeatRepositoryImpl implements SeatRepository {
         [flightId, seatNumber, clientId, marginSeconds]
       )
     );
-    return rows.length > 0 ? { priceCents: rows[0].price_cents, currency: rows[0].currency } : null;
+    return rows.length > 0 ? { price: rows[0].price, currency: rows[0].currency } : null;
   }
 
   async countLockStages(tx: TransactionContext, flightId: string): Promise<LockStageCounts> {

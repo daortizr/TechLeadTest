@@ -17,7 +17,7 @@ describe('flight search: day boundaries (9.4)', () => {
   async function insertFlight(code: string, localDeparture: string): Promise<void> {
     // localDeparture is a Bogotá wall-clock time, e.g. '2099-01-10 23:30'
     const [row] = await query<{ id: string }>(
-      `INSERT INTO flights (code, origin, destination, departure_at, arrival_at, price_cents, currency, status)
+      `INSERT INTO flights (code, origin, destination, departure_at, arrival_at, price, currency, status)
        VALUES ($1, 'BOG', 'MDE',
                ($2::timestamp AT TIME ZONE 'America/Bogota'),
                ($2::timestamp AT TIME ZONE 'America/Bogota') + interval '1 hour',

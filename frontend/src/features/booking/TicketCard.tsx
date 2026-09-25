@@ -46,7 +46,7 @@ export default function TicketCard({ ticket, originCity, destinationCity }: Tick
         </div>
         <div className="ticket__row ticket__row--total">
           <dt>{BOOKING_LABELS.totalPaid}</dt>
-          <dd>{formatPrice(ticket.priceCents, ticket.currency)}</dd>
+          <dd>{formatPrice(ticket.price, ticket.currency)}</dd>
         </div>
       </dl>
     </section>

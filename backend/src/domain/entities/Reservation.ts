@@ -10,7 +10,7 @@ export class Reservation {
     readonly passengerDocumentNumber: string,
     readonly passengerPhone: string,
     readonly clientId: string,
-    readonly priceCents: number,
+    readonly price: number,
     readonly currency: string,
     readonly createdAt: Date
   ) {}

@@ -8,7 +8,7 @@ export class Flight {
     readonly destination: string,
     readonly departureAt: Date,
     readonly arrivalAt: Date,
-    readonly priceCents: number,
+    readonly price: number,
     readonly currency: string,
     readonly status: FlightStatus,
     readonly version: number,

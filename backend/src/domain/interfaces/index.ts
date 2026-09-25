@@ -30,7 +30,7 @@ export interface ExpiredSeat {
 }
 
 export interface PayableLock {
-  priceCents: number;
+  price: number;
   currency: string;
 }
 

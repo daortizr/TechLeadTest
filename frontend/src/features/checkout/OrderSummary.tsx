@@ -30,7 +30,7 @@ export default function OrderSummary({
   onBack,
   onExpire
 }: OrderSummaryProps): React.ReactElement {
-  const price = formatPrice(flight.priceCents, flight.currency)
+  const price = formatPrice(flight.price, flight.currency)
 
   return (
     <aside className="card summary" aria-labelledby="summary-title">

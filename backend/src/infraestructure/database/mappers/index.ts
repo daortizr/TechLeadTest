@@ -24,7 +24,7 @@ export const FlightMapper = {
       record.destination,
       record.departure_at,
       record.arrival_at,
-      record.price_cents,
+      record.price,
       record.currency,
       record.status as FlightStatus,
       record.version,
@@ -62,7 +62,7 @@ export const ReservationMapper = {
       record.passenger_document_number,
       record.passenger_phone,
       record.client_id,
-      record.price_cents,
+      record.price,
       record.currency,
       record.created_at
     );
@@ -76,7 +76,7 @@ export const PaymentMapper = {
       record.idempotency_key,
       record.reservation_id,
       record.authorization_ref,
-      record.amount_cents,
+      record.amount,
       record.status as PaymentStatus,
       record.created_at
     );

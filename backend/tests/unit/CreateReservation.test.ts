@@ -122,7 +122,7 @@ describe('CreateReservationUseCase', () => {
     })
 
     mockIdempotencyRepository.claim.mockResolvedValueOnce({ idempotencyKey: 'key' })
-    mockFlightRepository.findById.mockResolvedValueOnce({ status: 'ON_SALE', priceCents: 150000 })
+    mockFlightRepository.findById.mockResolvedValueOnce({ status: 'ON_SALE', price: 150000 })
     mockSeatRepository.findBySeatNumber.mockResolvedValueOnce({
       lockedBy: 'client-1',
       lockedUntil: new Date(Date.now() + 1000),
@@ -147,7 +147,7 @@ describe('CreateReservationUseCase', () => {
   it('should log reservation details on success', async () => {
     // This test verifies logging behavior
     mockIdempotencyRepository.claim.mockResolvedValueOnce({ idempotencyKey: 'key' })
-    mockFlightRepository.findById.mockResolvedValueOnce({ status: 'ON_SALE', priceCents: 150000 })
+    mockFlightRepository.findById.mockResolvedValueOnce({ status: 'ON_SALE', price: 150000 })
     mockSeatRepository.findBySeatNumber.mockResolvedValueOnce({
       lockedBy: 'client-1',
       lockedUntil: new Date(Date.now() + 1000),

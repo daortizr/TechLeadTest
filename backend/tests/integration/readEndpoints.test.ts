@@ -191,7 +191,7 @@ describe('read endpoints', () => {
         flight: expect.objectContaining({ id: expect.any(String), status: expect.any(String) }),
         seat: expect.any(String),
         passengerName: expect.stringMatching(/^Pasajero /),
-        priceCents: expect.any(Number),
+        price: expect.any(Number),
         currency: 'COP',
         createdAt: expect.any(String)
       });

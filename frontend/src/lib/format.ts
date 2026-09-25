@@ -1,13 +1,13 @@
 const BOGOTA_TZ = 'America/Bogota'
 
-// price_cents is the minor unit: the UI divides by 100
-export function formatPrice(cents: number, currency = 'COP'): string {
+// price is in whole pesos (COP has no minor unit in use)
+export function formatPrice(price: number, currency = 'COP'): string {
   return new Intl.NumberFormat('es-CO', {
     style: 'currency',
     currency,
     minimumFractionDigits: 0,
     maximumFractionDigits: 0
-  }).format(cents / 100)
+  }).format(price)
 }
 
 function toDate(value: string | Date): Date {
