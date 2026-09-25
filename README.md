@@ -2,7 +2,7 @@
 
 > **Arquitectura y diagramas de flujo:** [ver documento](https://drive.google.com/file/d/17F5CZ5MybOOMOAoL97gl_TXIBxLiHFhY/view?usp=sharing)
 
-Prueba técnica Full Stack Senior: buscar vuelos, bloquear un asiento, pagar con una tarjeta ficticia y obtener un boleto, con todos los cambios reflejados al instante en todas las pestañas abiertas.
+Prueba técnica: buscar vuelos, bloquear un asiento, pagar con una tarjeta ficticia y obtener un boleto, con todos los cambios reflejados al instante en todas las pestañas abiertas.
 
 ## Características
 
