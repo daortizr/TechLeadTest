@@ -1,10 +1,10 @@
+import { ErrorCode, FlightDTO, FlightEvent } from '@flight-reservations/shared';
 import { ChangeFlightStatusInputPort } from '../inputPorts';
-import { FlightRepository, UnitOfWork, EventPublisher } from '../../infraestructure/outputPorts';
-import { Logger } from '../../infraestructure/outputPorts';
+import { FlightRepository, UnitOfWork, EventPublisher, Logger } from '../../infraestructure/outputPorts';
 import { AppError } from '../errorHandler';
-import { ErrorCode, FlightUpdatedEvent } from '@flight-reservations/shared';
-import { Flight } from '../../domain/entities';
+import { FlightMapper } from '../mappers';
 import { FlightStatus } from '../../domain/enums';
+import { publishAfterCommit } from '../helpers';
 
 export class ChangeFlightStatusUseCase implements ChangeFlightStatusInputPort {
   constructor(
@@ -14,60 +14,38 @@ export class ChangeFlightStatusUseCase implements ChangeFlightStatusInputPort {
     private logger: Logger
   ) {}
 
-  async execute(flightId: string, action: 'cancel'): Promise<void> {
-    try {
-      if (!flightId || !action) {
-        throw AppError.badRequest(ErrorCode.INVALID_REQUEST, 'flightId y action son requeridos');
-      }
+  // Only ON_SALE flights can be cancelled
+  async execute(flightId: string, action: 'cancel'): Promise<FlightDTO> {
+    const events: FlightEvent[] = [];
 
-      const events: FlightUpdatedEvent[] = [];
+    const flightDTO = await this.unitOfWork.run(async (tx) => {
+      const version = await this.flightRepository.cancel(tx, flightId);
 
-      await this.unitOfWork.run(async (tx) => {
+      if (version === null) {
         const flight = await this.flightRepository.findById(tx, flightId);
         if (!flight) {
           throw AppError.notFound(ErrorCode.FLIGHT_NOT_FOUND, 'Vuelo no encontrado');
         }
+        throw AppError.conflict(ErrorCode.INVALID_TRANSITION, 'Solo se pueden cancelar vuelos en venta');
+      }
 
-        if (action === 'cancel') {
-          // Can only cancel ON_SALE flights
-          if (flight.status !== FlightStatus.ON_SALE && flight.status !== 'DELAYED') {
-            throw AppError.conflict(ErrorCode.INVALID_TRANSITION, 'No se puede cancelar este vuelo');
-          }
+      const flight = await this.flightRepository.findById(tx, flightId);
+      if (!flight) {
+        throw AppError.internal('Vuelo cancelado no encontrado');
+      }
 
-          const cancelledFlight = new Flight(
-            flight.id,
-            flight.code,
-            flight.origin,
-            flight.destination,
-            flight.departureAt,
-            flight.arrivalAt,
-            flight.priceCents,
-            flight.currency,
-            FlightStatus.CANCELLED,
-            flight.version + 1,
-            flight.createdAt
-          );
-
-          await this.flightRepository.update(tx, cancelledFlight);
-
-          events.push({
-            type: 'flight.updated',
-            flightId,
-            status: FlightStatus.CANCELLED,
-            availableSeats: 0,
-            version: flight.version + 1
-          });
-
-          this.logger.info('Flight cancelled', { flightId });
-        }
+      events.push({
+        type: 'flight.updated',
+        flightId,
+        status: FlightStatus.CANCELLED,
+        availableSeats: 0,
+        version
       });
+      return FlightMapper.toDTO(flight, 0);
+    });
 
-      // Publish events after commit
-      await this.eventPublisher.publishBatch(events);
-    } catch (error) {
-      if (error instanceof AppError) throw error;
-      this.logger.error('Failed to change flight status', { error: String(error), flightId });
-      throw AppError.internal('Error al cambiar estado del vuelo');
-    }
+    await publishAfterCommit(this.eventPublisher, events, this.logger);
+    this.logger.info('Flight status changed', { flightId, action });
+    return flightDTO;
   }
 }

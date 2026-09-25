@@ -1,62 +1,56 @@
 import { Response } from 'express';
 import { FlightEvent } from '@flight-reservations/shared';
-import { config } from '../../config/env';
-
-interface SseClient {
-  response: Response;
-  clientId: string;
-}
+import { logger } from '../../utilities';
 
 export class SseHub {
-  private clients: Set<SseClient> = new Set();
-  private heartbeatInterval: NodeJS.Timeout | null = null;
+  private clients: Set<Response> = new Set();
+  private heartbeatTimer: NodeJS.Timeout | null = null;
+
+  constructor(private heartbeatIntervalMs: number) {}
 
   start(): void {
-    if (this.heartbeatInterval) return;
-
-    this.heartbeatInterval = setInterval(() => {
-      this.broadcast({ type: 'heartbeat' });
-    }, config.HEARTBEAT_INTERVAL_MS);
+    if (this.heartbeatTimer) return;
+    // SSE comments never reach JavaScript, so the heartbeat is a named event
+    this.heartbeatTimer = setInterval(() => this.broadcast({ type: 'heartbeat' }), this.heartbeatIntervalMs);
   }
 
   stop(): void {
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval);
-      this.heartbeatInterval = null;
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
     }
+    for (const client of this.clients) {
+      client.end();
+    }
+    this.clients.clear();
   }
 
-  addClient(response: Response, clientId: string): () => void {
-    const client: SseClient = { response, clientId };
-    this.clients.add(client);
-
-    // Send initial heartbeat
-    this.sendToClient(client, { type: 'heartbeat' });
-
-    // Return unsubscribe function
+  // Returns the function that removes the client when the connection closes
+  addClient(response: Response): () => void {
+    this.clients.add(response);
+    this.send(response, { type: 'heartbeat' });
     return () => {
-      this.clients.delete(client);
+      this.clients.delete(response);
     };
   }
 
   broadcast(event: FlightEvent): void {
     for (const client of this.clients) {
-      this.sendToClient(client, event);
+      this.send(client, event);
     }
   }
 
-  private sendToClient(client: SseClient, event: FlightEvent): void {
+  clientCount(): number {
+    return this.clients.size;
+  }
+
+  private send(client: Response, event: FlightEvent): void {
     try {
-      if (event.type === 'heartbeat') {
-        client.response.write(`: heartbeat\n\n`);
-      } else {
-        client.response.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
-      }
+      const data = event.type === 'heartbeat' ? '{}' : JSON.stringify(event);
+      client.write(`event: ${event.type}\ndata: ${data}\n\n`);
     } catch (error) {
-      console.error('Error sending SSE to client:', error);
+      logger.warn('Error sending SSE event, dropping the client', { error: String(error) });
       this.clients.delete(client);
     }
   }
 }
-
-export const sseHub = new SseHub();

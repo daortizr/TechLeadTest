@@ -1,6 +1,7 @@
+import { AirportDTO } from '@flight-reservations/shared';
 import { ListAirportsInputPort } from '../inputPorts';
-import { AirportRepository, UnitOfWork } from '../../infraestructure/outputPorts';
-import { Logger } from '../../infraestructure/outputPorts';
+import { AirportRepository, UnitOfWork, Logger } from '../../infraestructure/outputPorts';
+import { AirportMapper } from '../mappers';
 
 export class ListAirportsUseCase implements ListAirportsInputPort {
   constructor(
@@ -9,17 +10,9 @@ export class ListAirportsUseCase implements ListAirportsInputPort {
     private logger: Logger
   ) {}
 
-  async execute(): Promise<void> {
-    try {
-      // This is typically called by the controller which handles the response
-      await this.unitOfWork.run(async (tx) => {
-        const airports = await this.airportRepository.findAll(tx);
-        this.logger.debug('Listed airports', { count: airports.length });
-        return airports;
-      });
-    } catch (error) {
-      this.logger.error('Failed to list airports', { error: String(error) });
-      throw error;
-    }
+  async execute(): Promise<AirportDTO[]> {
+    const airports = await this.unitOfWork.run((tx) => this.airportRepository.findAll(tx));
+    this.logger.debug('Listed airports', { count: airports.length });
+    return airports.map((airport) => AirportMapper.toDTO(airport));
   }
 }
