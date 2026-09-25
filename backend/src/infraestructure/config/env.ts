@@ -1,30 +1,18 @@
-import dotenv from 'dotenv';
+import { z } from 'zod';
 
-dotenv.config();
+const envSchema = z.object({
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  PORT: z.coerce.number().default(3000),
+  DATABASE_URL: z.string().url(),
+  ADMIN_KEY: z.string(),
+  LOCK_TTL_SECONDS: z.coerce.number().default(300),
+  CHECKOUT_TTL_SECONDS: z.coerce.number().default(300),
+  PAYMENT_MARGIN_SECONDS: z.coerce.number().default(10),
+  EXPIRATION_JOB_INTERVAL_MS: z.coerce.number().default(1000),
+  HEARTBEAT_INTERVAL_MS: z.coerce.number().default(25000),
+  PAYMENT_LATENCY_MS: z.coerce.number().default(0)
+});
 
-function databaseUsesSsl(): boolean {
-  const raw = process.env.DB_SSL?.trim().toLowerCase();
-  if (raw === 'true' || raw === '1') return true;
-  return false;
-}
+export type Env = z.infer<typeof envSchema>;
 
-export const config = {
-  nodeEnv: process.env.NODE_ENV ?? 'development',
-  port: Number(process.env.SERVER_PORT) || 3000,
-  adminKey: process.env.ADMIN_KEY!,
-  dbHost: process.env.DB_HOST ?? 'localhost',
-  dbPort: Number(process.env.DB_PORT) || 5432,
-  dbUserName: process.env.DB_USER ?? 'postgres',
-  dbPassword: process.env.DB_PASSWORD ?? 'postgres',
-  dbName: process.env.DB_NAME ?? 'postgres',
-  dbSchema: process.env.DB_SCHEMA ?? 'public',
-  dbUsesSsl: databaseUsesSsl(),
-  lockTtlSeconds: Number(process.env.LOCK_TTL_SECONDS) || 300,
-  checkoutTtlSeconds: Number(process.env.CHECKOUT_TTL_SECONDS) || 300,
-  paymentMarginSeconds: Number(process.env.PAYMENT_MARGIN_SECONDS) || 10,
-  expirationJobIntervalMs: Number(process.env.EXPIRATION_JOB_INTERVAL_MS) || 1000,
-  heartbeatIntervalMs: Number(process.env.HEARTBEAT_INTERVAL_MS) || 25000,
-  paymentLatencyMs: Number(process.env.PAYMENT_LATENCY_MS) || 0
-};
-
-export type Env = typeof config;
+export const config: Env = envSchema.parse(process.env);

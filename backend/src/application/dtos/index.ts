@@ -1,23 +1,16 @@
-// Settings and commands of the use cases
-
-export interface SeatLockSettings {
-  lockTtlSeconds: number;
-  checkoutTtlSeconds: number;
-  paymentMarginSeconds: number;
+// Input DTOs for use cases
+export interface LockSeatRequest {
+  flightId: string;
+  seat: string;
+  clientId: string;
 }
 
-export interface SearchFlightsQuery {
-  origin: string;
-  destination: string;
-  date: string;
-}
-
-export interface CreateReservationCommand {
+export interface CreateReservationRequest {
   flightId: string;
   seat: string;
   clientId: string;
   idempotencyKey: string;
-  // Values are already trimmed and normalized at the HTTP edge
+  requestHash: string;
   passenger: {
     fullName: string;
     email: string;
@@ -31,4 +24,15 @@ export interface CreateReservationCommand {
     expiry: string;
     cvv: string;
   };
+}
+
+export interface SearchFlightsRequest {
+  origin: string;
+  destination: string;
+  date: string;
+}
+
+export interface ChangeFlightStatusRequest {
+  flightId: string;
+  action: 'cancel';
 }

@@ -1,241 +1,132 @@
-import { MigrationInterface, QueryRunner, Table, TableCheck, TableForeignKey, TableIndex, TableUnique } from 'typeorm';
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CreateTables1700000000000 implements MigrationInterface {
+export class CreateTables1000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.createTable(
-      new Table({
-        name: 'airports',
-        columns: [
-          { name: 'code', type: 'char', length: '3', isPrimary: true },
-          { name: 'name', type: 'text', isNullable: false },
-          { name: 'city', type: 'text', isNullable: false },
-          { name: 'timezone', type: 'text', isNullable: false, default: "'America/Bogota'" }
-        ],
-        checks: [
-          new TableCheck({ name: 'CHK_airports_code', expression: "code ~ '^[A-Z]{3}$'" })
-        ]
-      }),
-      true
-    );
+    await queryRunner.query(`
+      CREATE TABLE airports (
+        code     CHAR(3) PRIMARY KEY CHECK (code ~ '^[A-Z]{3}$'),
+        name     TEXT NOT NULL,
+        city     TEXT NOT NULL,
+        timezone TEXT NOT NULL DEFAULT 'America/Bogota'
+      )
+    `);
 
-    await queryRunner.createTable(
-      new Table({
-        name: 'flights',
-        columns: [
-          { name: 'id', type: 'uuid', isPrimary: true, default: 'gen_random_uuid()' },
-          { name: 'code', type: 'text', isNullable: false },
-          { name: 'origin', type: 'char', length: '3', isNullable: false },
-          { name: 'destination', type: 'char', length: '3', isNullable: false },
-          { name: 'departure_at', type: 'timestamptz', isNullable: false },
-          { name: 'arrival_at', type: 'timestamptz', isNullable: false },
-          { name: 'price_cents', type: 'integer', isNullable: false },
-          { name: 'currency', type: 'char', length: '3', isNullable: false, default: "'COP'" },
-          { name: 'status', type: 'text', isNullable: false, default: "'ON_SALE'" },
-          { name: 'version', type: 'integer', isNullable: false, default: 0 },
-          { name: 'created_at', type: 'timestamptz', isNullable: false, default: 'now()' }
-        ],
-        checks: [
-          new TableCheck({ name: 'CHK_flights_price_positive', expression: 'price_cents > 0' }),
-          new TableCheck({ name: 'CHK_flights_status', expression: "status IN ('ON_SALE','SOLD_OUT','CANCELLED')" }),
-          new TableCheck({ name: 'CHK_flights_origin_destination', expression: 'origin <> destination' }),
-          new TableCheck({ name: 'CHK_flights_arrival_after_departure', expression: 'arrival_at > departure_at' })
-        ]
-      }),
-      true
-    );
+    await queryRunner.query(`
+      CREATE TABLE flights (
+        id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        code          TEXT NOT NULL,
+        origin        CHAR(3) NOT NULL REFERENCES airports(code) ON DELETE RESTRICT,
+        destination   CHAR(3) NOT NULL REFERENCES airports(code) ON DELETE RESTRICT,
+        departure_at  TIMESTAMPTZ NOT NULL,
+        arrival_at    TIMESTAMPTZ NOT NULL,
+        price_cents   INTEGER NOT NULL CHECK (price_cents > 0),
+        currency      CHAR(3) NOT NULL DEFAULT 'COP',
+        status        TEXT NOT NULL DEFAULT 'ON_SALE'
+                      CHECK (status IN ('ON_SALE','SOLD_OUT','CANCELLED')),
+        version       INTEGER NOT NULL DEFAULT 0,
+        created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+        CHECK (origin <> destination),
+        CHECK (arrival_at > departure_at)
+      )
+    `);
 
-    await queryRunner.createForeignKeys('flights', [
-      new TableForeignKey({
-        columnNames: ['origin'],
-        referencedTableName: 'airports',
-        referencedColumnNames: ['code'],
-        onDelete: 'RESTRICT'
-      }),
-      new TableForeignKey({
-        columnNames: ['destination'],
-        referencedTableName: 'airports',
-        referencedColumnNames: ['code'],
-        onDelete: 'RESTRICT'
-      })
-    ]);
+    await queryRunner.query(`
+      CREATE INDEX ix_flights_search ON flights (origin, destination, departure_at)
+    `);
 
-    await queryRunner.createIndex(
-      'flights',
-      new TableIndex({ name: 'ix_flights_search', columnNames: ['origin', 'destination', 'departure_at'] })
-    );
+    await queryRunner.query(`
+      CREATE TABLE seats (
+        flight_id           UUID NOT NULL REFERENCES flights(id) ON DELETE RESTRICT,
+        seat_number         TEXT NOT NULL,
+        row_number          INTEGER NOT NULL CHECK (row_number > 0),
+        column_letter       CHAR(1) NOT NULL CHECK (column_letter ~ '^[A-Z]$'),
+        status              TEXT NOT NULL DEFAULT 'AVAILABLE'
+                            CHECK (status IN ('AVAILABLE','BLOCKED','RESERVED')),
+        locked_by           TEXT,
+        locked_until        TIMESTAMPTZ,
+        checkout_started_at TIMESTAMPTZ,
+        version             INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (flight_id, seat_number),
+        CHECK (seat_number = row_number::text || column_letter),
+        CHECK (
+          (status = 'BLOCKED' AND locked_by IS NOT NULL AND locked_until IS NOT NULL)
+          OR (status <> 'BLOCKED' AND locked_by IS NULL AND locked_until IS NULL
+              AND checkout_started_at IS NULL)
+        )
+      )
+    `);
 
-    await queryRunner.createTable(
-      new Table({
-        name: 'seats',
-        columns: [
-          { name: 'flight_id', type: 'uuid', isPrimary: true },
-          { name: 'seat_number', type: 'text', isPrimary: true },
-          { name: 'row_number', type: 'integer', isNullable: false },
-          { name: 'column_letter', type: 'char', length: '1', isNullable: false },
-          { name: 'status', type: 'text', isNullable: false, default: "'AVAILABLE'" },
-          { name: 'locked_by', type: 'text', isNullable: true },
-          { name: 'locked_until', type: 'timestamptz', isNullable: true },
-          { name: 'checkout_started_at', type: 'timestamptz', isNullable: true },
-          { name: 'version', type: 'integer', isNullable: false, default: 0 }
-        ],
-        checks: [
-          new TableCheck({ name: 'CHK_seats_row_positive', expression: 'row_number > 0' }),
-          new TableCheck({ name: 'CHK_seats_column_letter', expression: "column_letter ~ '^[A-Z]$'" }),
-          new TableCheck({ name: 'CHK_seats_status', expression: "status IN ('AVAILABLE','BLOCKED','RESERVED')" }),
-          new TableCheck({ name: 'CHK_seats_number_matches', expression: "seat_number = row_number::text || column_letter" }),
-          new TableCheck({
-            name: 'CHK_seats_lock_consistency',
-            expression:
-              "(status = 'BLOCKED' AND locked_by IS NOT NULL AND locked_until IS NOT NULL) OR (status <> 'BLOCKED' AND locked_by IS NULL AND locked_until IS NULL AND checkout_started_at IS NULL)"
-          })
-        ]
-      }),
-      true
-    );
+    await queryRunner.query(`
+      CREATE INDEX ix_seats_expiry ON seats (locked_until) WHERE status = 'BLOCKED'
+    `);
 
-    await queryRunner.createForeignKey(
-      'seats',
-      new TableForeignKey({
-        columnNames: ['flight_id'],
-        referencedTableName: 'flights',
-        referencedColumnNames: ['id'],
-        onDelete: 'RESTRICT'
-      })
-    );
+    await queryRunner.query(`
+      CREATE UNIQUE INDEX ux_seats_one_lock_per_client
+        ON seats (flight_id, locked_by) WHERE status = 'BLOCKED'
+    `);
 
-    await queryRunner.createIndices('seats', [
-      new TableIndex({ name: 'ix_seats_expiry', columnNames: ['locked_until'], where: "status = 'BLOCKED'" }),
-      new TableIndex({
-        name: 'ux_seats_one_lock_per_client',
-        columnNames: ['flight_id', 'locked_by'],
-        isUnique: true,
-        where: "status = 'BLOCKED'"
-      })
-    ]);
+    await queryRunner.query(`
+      CREATE TABLE reservations (
+        id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        code            TEXT NOT NULL UNIQUE CHECK (code ~ '^[A-HJ-NP-Z2-9]{6}$'),
+        flight_id       UUID NOT NULL,
+        seat_number     TEXT NOT NULL,
+        passenger_name  TEXT NOT NULL,
+        passenger_email TEXT NOT NULL,
+        client_id       TEXT NOT NULL,
+        price_cents     INTEGER NOT NULL CHECK (price_cents > 0),
+        currency        CHAR(3) NOT NULL,
+        created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+        UNIQUE (flight_id, seat_number),
+        FOREIGN KEY (flight_id, seat_number)
+          REFERENCES seats (flight_id, seat_number) ON DELETE RESTRICT
+      )
+    `);
 
-    await queryRunner.createTable(
-      new Table({
-        name: 'reservations',
-        columns: [
-          { name: 'id', type: 'uuid', isPrimary: true, default: 'gen_random_uuid()' },
-          { name: 'code', type: 'text', isNullable: false, isUnique: true },
-          { name: 'flight_id', type: 'uuid', isNullable: false },
-          { name: 'seat_number', type: 'text', isNullable: false },
-          { name: 'passenger_name', type: 'text', isNullable: false },
-          { name: 'passenger_email', type: 'text', isNullable: false },
-          { name: 'passenger_document_type', type: 'text', isNullable: false },
-          { name: 'passenger_document_number', type: 'text', isNullable: false },
-          { name: 'passenger_phone', type: 'text', isNullable: false },
-          { name: 'client_id', type: 'text', isNullable: false },
-          { name: 'price_cents', type: 'integer', isNullable: false },
-          { name: 'currency', type: 'char', length: '3', isNullable: false },
-          { name: 'created_at', type: 'timestamptz', isNullable: false, default: 'now()' }
-        ],
-        checks: [
-          new TableCheck({ name: 'CHK_reservations_code', expression: "code ~ '^[A-HJ-NP-Z2-9]{6}$'" }),
-          new TableCheck({ name: 'CHK_reservations_document_type', expression: "passenger_document_type IN ('CC','CE','PASSPORT')" }),
-          new TableCheck({ name: 'CHK_reservations_phone', expression: "passenger_phone ~ '^\\+[1-9][0-9]{7,14}$'" }),
-          new TableCheck({ name: 'CHK_reservations_price_positive', expression: 'price_cents > 0' })
-        ],
-        uniques: [new TableUnique({ name: 'UQ_reservations_flight_seat', columnNames: ['flight_id', 'seat_number'] })]
-      }),
-      true
-    );
+    await queryRunner.query(`
+      CREATE TABLE idempotency_keys (
+        key            TEXT PRIMARY KEY,
+        client_id      TEXT NOT NULL,
+        request_hash   TEXT NOT NULL,
+        status         TEXT NOT NULL CHECK (status IN ('IN_PROGRESS','COMPLETED','FAILED')),
+        reservation_id UUID REFERENCES reservations(id) ON DELETE RESTRICT,
+        created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+        CHECK ((status = 'COMPLETED') = (reservation_id IS NOT NULL))
+      )
+    `);
 
-    await queryRunner.createForeignKey(
-      'reservations',
-      new TableForeignKey({
-        columnNames: ['flight_id', 'seat_number'],
-        referencedTableName: 'seats',
-        referencedColumnNames: ['flight_id', 'seat_number'],
-        onDelete: 'RESTRICT'
-      })
-    );
+    await queryRunner.query(`
+      CREATE INDEX ix_idempotency_created ON idempotency_keys (created_at)
+    `);
 
-    await queryRunner.createTable(
-      new Table({
-        name: 'idempotency_keys',
-        columns: [
-          { name: 'key', type: 'text', isPrimary: true },
-          { name: 'client_id', type: 'text', isNullable: false },
-          { name: 'request_hash', type: 'text', isNullable: false },
-          { name: 'status', type: 'text', isNullable: false },
-          { name: 'reservation_id', type: 'uuid', isNullable: true },
-          { name: 'created_at', type: 'timestamptz', isNullable: false, default: 'now()' }
-        ],
-        checks: [
-          new TableCheck({ name: 'CHK_idempotency_status', expression: "status IN ('IN_PROGRESS','COMPLETED','FAILED')" }),
-          new TableCheck({
-            name: 'CHK_idempotency_completed_has_reservation',
-            expression: "(status = 'COMPLETED') = (reservation_id IS NOT NULL)"
-          })
-        ]
-      }),
-      true
-    );
+    await queryRunner.query(`
+      CREATE TABLE payments (
+        id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        idempotency_key   TEXT NOT NULL REFERENCES idempotency_keys(key) ON DELETE RESTRICT,
+        reservation_id    UUID REFERENCES reservations(id) ON DELETE RESTRICT,
+        authorization_ref TEXT,
+        amount_cents      INTEGER NOT NULL CHECK (amount_cents > 0),
+        status            TEXT NOT NULL
+                          CHECK (status IN ('AUTHORIZED','DECLINED','VOIDED','VOID_FAILED')),
+        created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `);
 
-    await queryRunner.createForeignKey(
-      'idempotency_keys',
-      new TableForeignKey({
-        columnNames: ['reservation_id'],
-        referencedTableName: 'reservations',
-        referencedColumnNames: ['id'],
-        onDelete: 'RESTRICT'
-      })
-    );
+    await queryRunner.query(`
+      CREATE INDEX ix_payments_key ON payments (idempotency_key)
+    `);
 
-    await queryRunner.createIndex(
-      'idempotency_keys',
-      new TableIndex({ name: 'ix_idempotency_created', columnNames: ['created_at'] })
-    );
-
-    await queryRunner.createTable(
-      new Table({
-        name: 'payments',
-        columns: [
-          { name: 'id', type: 'uuid', isPrimary: true, default: 'gen_random_uuid()' },
-          { name: 'idempotency_key', type: 'text', isNullable: false },
-          { name: 'reservation_id', type: 'uuid', isNullable: true },
-          { name: 'authorization_ref', type: 'text', isNullable: true },
-          { name: 'amount_cents', type: 'integer', isNullable: false },
-          { name: 'status', type: 'text', isNullable: false },
-          { name: 'created_at', type: 'timestamptz', isNullable: false, default: 'now()' }
-        ],
-        checks: [
-          new TableCheck({ name: 'CHK_payments_amount_positive', expression: 'amount_cents > 0' }),
-          new TableCheck({ name: 'CHK_payments_status', expression: "status IN ('AUTHORIZED','DECLINED','VOIDED','VOID_FAILED')" })
-        ]
-      }),
-      true
-    );
-
-    await queryRunner.createForeignKeys('payments', [
-      new TableForeignKey({
-        columnNames: ['idempotency_key'],
-        referencedTableName: 'idempotency_keys',
-        referencedColumnNames: ['key'],
-        onDelete: 'RESTRICT'
-      }),
-      new TableForeignKey({
-        columnNames: ['reservation_id'],
-        referencedTableName: 'reservations',
-        referencedColumnNames: ['id'],
-        onDelete: 'RESTRICT'
-      })
-    ]);
-
-    await queryRunner.createIndices('payments', [
-      new TableIndex({ name: 'ix_payments_key', columnNames: ['idempotency_key'] }),
-      new TableIndex({ name: 'ix_payments_reservation', columnNames: ['reservation_id'] })
-    ]);
+    await queryRunner.query(`
+      CREATE INDEX ix_payments_reservation ON payments (reservation_id)
+    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.dropTable('payments', true, true, true);
-    await queryRunner.dropTable('idempotency_keys', true, true, true);
-    await queryRunner.dropTable('reservations', true, true, true);
-    await queryRunner.dropTable('seats', true, true, true);
-    await queryRunner.dropTable('flights', true, true, true);
-    await queryRunner.dropTable('airports', true, true, true);
+    await queryRunner.query(`DROP TABLE payments`);
+    await queryRunner.query(`DROP TABLE idempotency_keys`);
+    await queryRunner.query(`DROP TABLE reservations`);
+    await queryRunner.query(`DROP TABLE seats`);
+    await queryRunner.query(`DROP TABLE flights`);
+    await queryRunner.query(`DROP TABLE airports`);
   }
 }

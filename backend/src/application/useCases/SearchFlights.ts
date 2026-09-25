@@ -1,63 +1,60 @@
-import { ErrorCode, FlightDTO } from "@flight-reservations/shared";
-import { SearchFlightsInputPort } from "../inputPorts";
-import { SearchFlightsQuery } from "../dtos";
-import {
-  AirportRepository,
-  FlightRepository,
-  UnitOfWork,
-  Logger,
-} from "../../infraestructure/outputPorts";
-import { AppError } from "../errorHandler";
-import { FlightMapper } from "../mappers";
+import { SearchFlightsInputPort } from '../inputPorts';
+import { FlightRepository, UnitOfWork } from '../../infraestructure/outputPorts';
+import { Logger } from '../../infraestructure/outputPorts';
+import { AppError } from '../errorHandler';
+import { ErrorCode } from '@flight-reservations/shared';
 
 export class SearchFlightsUseCase implements SearchFlightsInputPort {
   constructor(
     private flightRepository: FlightRepository,
-    private airportRepository: AirportRepository,
     private unitOfWork: UnitOfWork,
-    private logger: Logger,
+    private logger: Logger
   ) {}
 
-  // Shape validation (3 letters, distinct, YYYY-MM-DD) already happened at the HTTP edge
-  async execute(query: SearchFlightsQuery): Promise<FlightDTO[]> {
-    console.log("query", query);
-    const flights = await this.unitOfWork.run(async (tx) => {
-      // "Today" is the airport's date according to the database clock
-      const today = await this.airportRepository.todayAt(tx, query.origin);
-      if (today === null) {
-        throw AppError.badRequest(
-          ErrorCode.INVALID_REQUEST,
-          "Aeropuerto de origen desconocido",
-        );
-      }
-      if (query.date < today) {
-        throw AppError.badRequest(
-          ErrorCode.INVALID_REQUEST,
-          "La fecha no puede ser anterior a hoy",
-        );
-      }
-      const destination = await this.airportRepository.findByCode(
-        tx,
-        query.destination,
-      );
-      if (!destination) {
-        throw AppError.badRequest(
-          ErrorCode.INVALID_REQUEST,
-          "Aeropuerto de destino desconocido",
-        );
+  async execute(origin: string, destination: string, date: string): Promise<void> {
+    try {
+      // Validate inputs (basic validation, detailed validation done in controller)
+      if (!origin || !destination || !date) {
+        throw AppError.badRequest(ErrorCode.INVALID_REQUEST, 'origin, destination y date son requeridos');
       }
 
-      return this.flightRepository.search(
-        tx,
-        query.origin,
-        query.destination,
-        query.date,
-      );
-    });
+      if (origin === destination) {
+        throw AppError.badRequest(ErrorCode.INVALID_REQUEST, 'origin y destination deben ser diferentes');
+      }
 
-    this.logger.debug("Searched flights", { ...query, count: flights.length });
-    return flights.map(({ flight, availableSeats, totalSeats }) =>
-      FlightMapper.toDTO(flight, availableSeats, totalSeats),
-    );
+      // Parse and validate date format YYYY-MM-DD
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(date)) {
+        throw AppError.badRequest(ErrorCode.INVALID_REQUEST, 'date debe estar en formato YYYY-MM-DD');
+      }
+
+      const parsedDate = new Date(date);
+      if (isNaN(parsedDate.getTime())) {
+        throw AppError.badRequest(ErrorCode.INVALID_REQUEST, 'date inválida');
+      }
+
+      await this.unitOfWork.run(async (tx) => {
+        const flights = await this.flightRepository.search(
+          tx,
+          origin.toUpperCase(),
+          destination.toUpperCase(),
+          parsedDate,
+          new Date(parsedDate.getTime() + 86400000) // +1 day
+        );
+
+        this.logger.debug('Searched flights', {
+          origin,
+          destination,
+          date,
+          count: flights.length
+        });
+
+        return flights;
+      });
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      this.logger.error('Failed to search flights', { error: String(error) });
+      throw AppError.internal('Error al buscar vuelos');
+    }
   }
 }

@@ -1,162 +1,110 @@
 .booking-page {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  max-width: 560px;
-  margin: 0 auto;
+  gap: 2rem;
+  padding: 2rem;
 }
 
-.booking-hero {
+.booking-header {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding-top: 8px;
+  gap: 1rem;
 }
 
-.booking-hero h1 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-}
-
-.booking-hero__badge {
-  display: inline-flex;
-  align-items: center;
+.booking-container {
+  display: flex;
   justify-content: center;
+  align-items: center;
+  min-height: 60vh;
+}
+
+.confirmation-card {
+  background: var(--white);
+  padding: 3rem 2rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--gray-200);
+  max-width: 500px;
+  text-align: center;
+}
+
+.confirmation-icon {
   width: 80px;
   height: 80px;
+  margin: 0 auto 1rem;
+  background: rgba(30, 142, 90, 0.1);
   border-radius: 50%;
-  background: var(--ok-tint);
-  color: var(--ok);
-}
-
-/* A cancelled flight is announced loudly: icon, text and a red frame, not only a color */
-.booking-cancelled {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 14px 18px;
-  background: var(--brand-red-tint);
-  border: 1.5px solid var(--brand-red-strong);
-  border-radius: var(--radius-md);
-  color: var(--brand-red-strong);
-}
-
-.booking-cancelled__title {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 1.125rem;
+  justify-content: center;
+  font-size: 2.5rem;
+  color: var(--ok);
   font-weight: 700;
 }
 
-/* ---- Ticket ---- */
-.ticket {
-  padding: 28px 32px;
-  border-radius: 20px;
+.confirmation-card h1 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.75rem;
+  color: var(--ink);
 }
 
-.ticket__label {
+.confirmation-text {
   color: var(--gray-500);
-  text-align: center;
+  margin-bottom: 2rem;
+  font-size: 1rem;
 }
 
-.ticket__code {
-  margin: 6px 0 24px;
-  padding-bottom: 24px;
-  border-bottom: 1.5px dashed var(--gray-200);
-  text-align: center;
-  font-size: 2.75rem;
-  font-weight: 600;
-  letter-spacing: 0.22em;
-  /* The trailing letter-spacing would push the code off-center */
-  text-indent: 0.22em;
+.booking-details {
+  background: var(--gray-50);
+  padding: 1.5rem;
+  border-radius: var(--radius-md);
+  margin: 2rem 0;
+  text-align: left;
 }
 
-.ticket__rows {
+.detail-row {
   display: flex;
-  flex-direction: column;
-  gap: 14px;
-  margin: 0;
-}
-
-.ticket__row {
-  display: flex;
-  align-items: baseline;
   justify-content: space-between;
-  gap: 16px;
+  align-items: center;
+  gap: 1rem;
+
+  .label {
+    color: var(--gray-500);
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .value {
+    color: var(--ink);
+    font-weight: 600;
+    font-family: monospace;
+  }
 }
 
-.ticket__row dt {
+.confirmation-note {
   color: var(--gray-500);
-  font-size: 1.0625rem;
+  font-size: 0.875rem;
+  margin: 1.5rem 0;
 }
 
-.ticket__row dd {
-  margin: 0;
-  text-align: right;
-  font-size: 1.0625rem;
-  font-variant-numeric: tabular-nums;
+.confirmation-card button {
+  width: 100%;
 }
 
-.ticket__row--total dt {
-  font-weight: 600;
-}
-
-.ticket__row--total dd {
-  font-weight: 600;
-}
-
-/* ---- Actions ---- */
-.booking-actions {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-}
-
-.booking-actions .btn {
-  min-height: 52px;
-}
-
-.booking-feedback {
-  min-height: 24px;
-  color: var(--ok);
-  text-align: center;
-  font-weight: 500;
-}
-
-.booking-skeleton {
-  min-height: 460px;
-  max-width: 560px;
-  margin: 0 auto;
-  background: linear-gradient(90deg, var(--white) 0%, var(--gray-50) 50%, var(--white) 100%);
-  background-size: 200% 100%;
-  animation: booking-skeleton 1.4s ease-in-out infinite;
-}
-
-@keyframes booking-skeleton {
-  from {
-    background-position: 200% 0;
-  }
-  to {
-    background-position: -200% 0;
-  }
-}
-
-@media (max-width: 480px) {
-  .ticket {
-    padding: 22px 18px;
+@media (max-width: 640px) {
+  .booking-page {
+    padding: 1rem;
   }
 
-  .ticket__code {
-    font-size: 2.25rem;
-    letter-spacing: 0.16em;
-    text-indent: 0.16em;
+  .confirmation-card {
+    padding: 2rem 1.5rem;
   }
 
-  .booking-actions {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 12px;
+  .confirmation-icon {
+    width: 60px;
+    height: 60px;
+    font-size: 2rem;
+  }
+
+  .confirmation-card h1 {
+    font-size: 1.5rem;
   }
 }

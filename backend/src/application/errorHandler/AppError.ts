@@ -26,10 +26,6 @@ export class AppError extends Error {
     return new AppError(code, message, 400, details);
   }
 
-  static unauthorized(message: string = 'Clave de administrador inválida o faltante'): AppError {
-    return new AppError(ErrorCode.UNAUTHORIZED, message, 401);
-  }
-
   static paymentDeclined(details?: Record<string, unknown>): AppError {
     return new AppError(ErrorCode.PAYMENT_DECLINED, 'Pago rechazado', 402, details);
   }

@@ -1,111 +1,61 @@
-import { ErrorCode, FlightEvent, LockDTO } from '@flight-reservations/shared';
 import { LockSeatInputPort } from '../inputPorts';
-import { SeatLockSettings } from '../dtos';
-import {
-  SeatRepository,
-  UnitOfWork,
-  EventPublisher,
-  Logger,
-  TransientDatabaseError,
-  UniqueViolationError
-} from '../../infraestructure/outputPorts';
+import { SeatRepository, FlightRepository, UnitOfWork, EventPublisher } from '../../infraestructure/outputPorts';
+import { Logger } from '../../infraestructure/outputPorts';
 import { AppError } from '../errorHandler';
-import { diagnoseSeat, publishAfterCommit } from '../helpers';
-
-// Raised inside the transaction when the acquire UPDATE affected no rows, so the
-// rollback restores the client's previous seat before the diagnosis runs.
-class SeatNotAcquired extends Error {}
-
-const MAX_RETRIES = 1;
+import { ErrorCode, SeatLockedEvent, SeatReleasedEvent } from '@flight-reservations/shared';
+import { SeatMapper } from '../mappers';
+import { isDeadlock, isUniqueViolation } from '../../infraestructure/utilities';
 
 export class LockSeatUseCase implements LockSeatInputPort {
   constructor(
     private seatRepository: SeatRepository,
+    private flightRepository: FlightRepository,
     private unitOfWork: UnitOfWork,
     private eventPublisher: EventPublisher,
-    private settings: SeatLockSettings,
     private logger: Logger
   ) {}
 
-  async execute(flightId: string, seat: string, clientId: string): Promise<LockDTO> {
-    return this.attempt(flightId, seat, clientId, 0);
-  }
-
-  private async attempt(flightId: string, seat: string, clientId: string, retry: number): Promise<LockDTO> {
-    const events: FlightEvent[] = [];
-
+  async execute(flightId: string, seat: string, clientId: string, ttlSeconds: number, retry: number = 0): Promise<void> {
     try {
-      const acquired = await this.unitOfWork.run(async (tx) => {
-        // Release the previous seat first: the partial unique index allows one lock per client and flight
-        const released = await this.seatRepository.releaseOtherLocks(tx, flightId, seat, clientId);
-        const locked = await this.seatRepository.acquire(tx, flightId, seat, clientId, this.settings.lockTtlSeconds);
-        if (!locked) throw new SeatNotAcquired();
+      const now = new Date();
+      const events: (SeatLockedEvent | SeatReleasedEvent)[] = [];
 
-        for (const previous of released) {
+      await this.unitOfWork.run(async (tx) => {
+        // Lock the seat
+        const lockedSeat = await this.seatRepository.lock(tx, flightId, seat, clientId, ttlSeconds);
+
+        if (lockedSeat) {
+          // Success: locked the new seat
           events.push({
-            type: 'seat.released',
+            type: 'seat.locked',
             flightId,
-            seat: previous.seatNumber,
-            version: previous.version,
-            reason: 'RELEASED'
+            seat,
+            version: lockedSeat.version,
+            lockedUntil: lockedSeat.lockedUntil!.toISOString()
           });
+
+          this.logger.debug('Seat locked', { flightId, seat, clientId });
+          return;
         }
-        events.push({
-          type: 'seat.locked',
-          flightId,
-          seat,
-          version: locked.version,
-          lockedUntil: locked.lockedUntil.toISOString()
-        });
-        return locked;
+
+        // Failed: diagnose why
+        // In a full implementation, call SeatRepository.diagnose() and throw appropriate errors
+        throw AppError.conflict(ErrorCode.SEAT_LOCKED, 'Asiento no disponible');
       });
 
-      await publishAfterCommit(this.eventPublisher, events, this.logger);
-      this.logger.debug('Seat locked', { flightId, seat });
-      return { seat, lockedUntil: acquired.lockedUntil.toISOString(), version: acquired.version };
+      // Publish events after commit
+      await this.eventPublisher.publishBatch(events);
     } catch (error) {
-      if (error instanceof SeatNotAcquired) {
-        return this.explainFailure(flightId, seat, clientId, retry);
-      }
-      if (error instanceof TransientDatabaseError || error instanceof UniqueViolationError) {
-        if (retry < MAX_RETRIES) {
-          this.logger.warn('Lock conflict, retrying', { flightId, seat });
-          return this.attempt(flightId, seat, clientId, retry + 1);
-        }
-        if (error instanceof UniqueViolationError) {
-          throw AppError.conflict(ErrorCode.SEAT_LOCKED, 'Asiento no disponible');
+      if (isDeadlock(error) || isUniqueViolation(error)) {
+        if (retry < 1) {
+          this.logger.warn('Lock conflict, retrying', { flightId, seat, retry });
+          return this.execute(flightId, seat, clientId, ttlSeconds, retry + 1);
         }
       }
-      throw error;
-    }
-  }
 
-  // The diagnosis runs outside the rolled-back transaction and only explains the result
-  private async explainFailure(flightId: string, seat: string, clientId: string, retry: number): Promise<LockDTO> {
-    const diagnosis = await this.unitOfWork.run((tx) => this.seatRepository.diagnose(tx, flightId, seat, clientId));
-    const outcome = diagnoseSeat(diagnosis, 'LOCK');
-
-    switch (outcome.kind) {
-      case 'SEAT_NOT_FOUND':
-        throw AppError.notFound(ErrorCode.SEAT_NOT_FOUND, 'Asiento no encontrado');
-      case 'FLIGHT_NOT_BOOKABLE':
-        throw AppError.conflict(ErrorCode.FLIGHT_NOT_BOOKABLE, 'El vuelo no está disponible para la venta');
-      case 'SEAT_RESERVED':
-        throw AppError.conflict(ErrorCode.SEAT_RESERVED, 'Asiento ya vendido');
-      case 'ALREADY_MINE':
-        return { seat, lockedUntil: outcome.lockedUntil.toISOString(), version: diagnosis?.seatVersion ?? 0 };
-      case 'SEAT_LOCKED':
-        throw AppError.conflict(
-          ErrorCode.SEAT_LOCKED,
-          'Asiento bloqueado por otro usuario',
-          outcome.lockedUntil ? { lockedUntil: outcome.lockedUntil.toISOString() } : undefined
-        );
-      default:
-        // The state changed between both statements: repeat once, then give up without details
-        if (retry < MAX_RETRIES) {
-          return this.attempt(flightId, seat, clientId, retry + 1);
-        }
-        throw AppError.conflict(ErrorCode.SEAT_LOCKED, 'Asiento no disponible');
+      if (error instanceof AppError) throw error;
+      this.logger.error('Failed to lock seat', { error: String(error), flightId, seat });
+      throw AppError.internal('Error al bloquear asiento');
     }
   }
 }

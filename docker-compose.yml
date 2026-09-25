@@ -1,24 +1,23 @@
-# `docker-compose up --build` starts everything at http://localhost:8080.
-# Every ${VAR:-default} can be overridden from a .env file next to this one (see .env.example).
+version: '3.8'
+
 services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-postgres}
+      POSTGRES_USER: ${DB_USER:-flightuser}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-flightpass}
+      POSTGRES_DB: ${DB_NAME:-flights_db}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-flightuser}"]
       interval: 5s
-      timeout: 5s
       retries: 10
-    # Only for local development (`docker-compose up -d db` + `npm run dev`). The host port is not
-    # 5432 by default so it never collides with a PostgreSQL already installed on the machine.
+      timeout: 5s
+      start_period: 10s
     ports:
-      - "${DB_HOST_PORT:-5433}:5432"
+      - "5432:5432"
 
   api:
     build:
@@ -26,46 +25,63 @@ services:
       dockerfile: backend/Dockerfile
     restart: unless-stopped
     init: true
+    env_file: .env
     environment:
       NODE_ENV: production
-      SERVER_PORT: 3000
       DB_HOST: db
       DB_PORT: 5432
-      DB_USER: ${POSTGRES_USER:-postgres}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      DB_NAME: ${POSTGRES_DB:-postgres}
-      DB_SSL: "false"
-      ADMIN_KEY: ${ADMIN_KEY:-admin}
-      LOCK_TTL_SECONDS: ${LOCK_TTL_SECONDS:-300}
-      CHECKOUT_TTL_SECONDS: ${CHECKOUT_TTL_SECONDS:-300}
-      PAYMENT_MARGIN_SECONDS: ${PAYMENT_MARGIN_SECONDS:-10}
-      EXPIRATION_JOB_INTERVAL_MS: ${EXPIRATION_JOB_INTERVAL_MS:-1000}
-      HEARTBEAT_INTERVAL_MS: ${HEARTBEAT_INTERVAL_MS:-25000}
-      PAYMENT_LATENCY_MS: ${PAYMENT_LATENCY_MS:-0}
+      DB_USER: ${DB_USER:-flightuser}
+      DB_PASSWORD: ${DB_PASSWORD:-flightpass}
+      DB_NAME: ${DB_NAME:-flights_db}
+      DATABASE_URL: postgresql://${DB_USER:-flightuser}:${DB_PASSWORD:-flightpass}@db:5432/${DB_NAME:-flights_db}
     depends_on:
       db:
         condition: service_healthy
-    # The port is not published: the browser reaches the API through `web`, on a single origin
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health || exit 1"]
-      interval: 5s
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/airports || exit 1"]
+      interval: 10s
+      retries: 5
       timeout: 5s
-      retries: 10
-      start_period: 20s
+      start_period: 30s
+    ports:
+      - "3000:3000"
+    networks:
+      - app-network
 
   web:
     build:
       context: .
       dockerfile: frontend/Dockerfile
       args:
-        VITE_API_URL: /api
-        VITE_ADMIN_KEY: ${ADMIN_KEY:-admin}
+        VITE_API_URL: http://localhost:3000/api
     restart: unless-stopped
     depends_on:
-      api:
-        condition: service_healthy
+      - api
     ports:
       - "8080:80"
+    networks:
+      - app-network
+    environment:
+      ADMIN_KEY: ${ADMIN_KEY:-admin-secret-key}
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+      - web
+    networks:
+      - app-network
 
 volumes:
   pgdata:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge

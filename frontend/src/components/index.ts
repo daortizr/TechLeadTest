@@ -1,8 +1,3 @@
-export { default as Header, ConnectionIndicator } from './Header'
+export { default as Header } from './Header'
 export { default as Button } from './Button'
-export { default as StatusPill } from './StatusPill'
-export { default as AppLayout } from './AppLayout'
-export { default as NoticeRegion } from './NoticeRegion'
-export { default as Countdown } from './Countdown'
-export { TextField, SelectField } from './FormField'
-export * from './icons'
+// Additional components will be added as needed

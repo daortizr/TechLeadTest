@@ -1,85 +1,53 @@
-import React, { useState } from 'react'
-import { Navigate, useLocation, useNavigate } from 'react-router-dom'
-import { AlertIcon, Button, LockIcon, TextField } from '../../components'
-import { ADMIN_LABELS } from '../../lib/labels'
-import { DEFAULT_ADMIN_PATH, loginAdmin, safeAdminPath, useAdminSession } from './adminSession'
-import './AdminLoginPage.css'
+import { useState } from 'react'
+import { Button } from '../../components'
+import './AdminPage.css'
 
-const L = ADMIN_LABELS.login
+interface AdminLoginPageProps {
+  onLoginSuccess: () => void
+}
 
-export default function AdminLoginPage(): React.ReactElement {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const loggedIn = useAdminSession()
+export default function AdminLoginPage({ onLoginSuccess }: AdminLoginPageProps): React.ReactElement {
+  const [credentials, setCredentials] = useState({ username: '', password: '' })
 
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [failed, setFailed] = useState(false)
-
-  // Already signed in: nothing to do here
-  if (loggedIn) {
-    return <Navigate to={DEFAULT_ADMIN_PATH} replace />
-  }
-
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-
-    if (loginAdmin(username, password)) {
-      // Back to the screen they tried to open; straight to the login means the default one
-      const from = (location.state as { from?: unknown } | null)?.from
-      navigate(safeAdminPath(from), { replace: true })
-      return
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    // Simple client-side login (admin/admin)
+    if (credentials.username === 'admin' && credentials.password === 'admin') {
+      sessionStorage.setItem('admin-logged-in', 'true')
+      onLoginSuccess()
+    } else {
+      alert('Credenciales inválidas')
     }
-
-    // One message for any failure, so it never tells which field was wrong
-    setFailed(true)
-    setPassword('')
-    document.getElementById('password')?.focus()
   }
 
   return (
-    <div className="login-card card">
-      <span className="login-card__icon" aria-hidden="true">
-        <LockIcon size={34} />
-      </span>
-      <h1 className="login-card__title">{L.title}</h1>
-      <p className="login-card__subtitle">{L.subtitle}</p>
+    <div className="admin-login-page">
+      <form onSubmit={handleSubmit} className="login-form">
+        <h1>Acceso Administrativo</h1>
 
-      <form className="login-form" onSubmit={handleSubmit} noValidate>
-        <TextField
-          id="username"
-          name="username"
-          label={L.username}
-          value={username}
-          autoComplete="username"
-          autoCapitalize="none"
-          spellCheck={false}
-          autoFocus
-          onChange={(event) => setUsername(event.target.value)}
-        />
-        <TextField
-          id="password"
-          name="password"
-          type="password"
-          label={L.password}
-          value={password}
-          autoComplete="current-password"
-          onChange={(event) => setPassword(event.target.value)}
-        />
-
-        {/* role="alert": announced as soon as it appears */}
-        <div className="login-form__message" role="alert">
-          {failed && (
-            <p className="login-form__error">
-              <AlertIcon size={18} />
-              <span>{L.invalid}</span>
-            </p>
-          )}
+        <div className="form-group">
+          <label htmlFor="username">Usuario</label>
+          <input
+            id="username"
+            type="text"
+            value={credentials.username}
+            onChange={(e) => setCredentials({ ...credentials, username: (e.target as HTMLInputElement).value })}
+            required
+          />
         </div>
 
-        <Button type="submit" fullWidth>
-          {L.submit}
-        </Button>
+        <div className="form-group">
+          <label htmlFor="password">Contraseña</label>
+          <input
+            id="password"
+            type="password"
+            value={credentials.password}
+            onChange={(e) => setCredentials({ ...credentials, password: (e.target as HTMLInputElement).value })}
+            required
+          />
+        </div>
+
+        <Button type="submit">Acceder</Button>
       </form>
     </div>
   )

@@ -1,52 +1,31 @@
-import { afterEach } from 'vitest'
+import { expect, afterEach, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
-import '@testing-library/jest-dom/vitest'
 
+// Cleanup after each test
 afterEach(() => {
   cleanup()
 })
 
-type Listener = (event: MessageEvent<string>) => void
+// Mock window.matchMedia
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: vi.fn().mockImplementation((query) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+})
 
-// A controllable EventSource: tests decide when it opens and which events arrive
-export class FakeEventSource {
-  static instances: FakeEventSource[] = []
-  static reset(): void {
-    FakeEventSource.instances = []
-  }
-  static latest(): FakeEventSource {
-    return FakeEventSource.instances[FakeEventSource.instances.length - 1]
-  }
-
-  onopen: (() => void) | null = null
-  onerror: (() => void) | null = null
-  closed = false
-  private listeners = new Map<string, Listener[]>()
-
-  constructor(readonly url: string) {
-    FakeEventSource.instances.push(this)
-  }
-
-  addEventListener(type: string, listener: Listener): void {
-    this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener])
-  }
-
-  close(): void {
-    this.closed = true
-  }
-
-  open(): void {
-    this.onopen?.()
-  }
-
-  emit(type: string, payload: unknown = {}): void {
-    const message = { data: JSON.stringify(payload) } as MessageEvent<string>
-    this.listeners.get(type)?.forEach((listener) => listener(message))
-  }
-
-  fail(): void {
-    this.onerror?.()
-  }
-}
-
-Object.defineProperty(globalThis, 'EventSource', { value: FakeEventSource, writable: true, configurable: true })
+// Mock EventSource for SSE
+global.EventSource = vi.fn(() => ({
+  addEventListener: vi.fn(),
+  close: vi.fn(),
+  onopen: null,
+  onerror: null,
+  onmessage: null,
+})) as any

@@ -1,13 +1,5 @@
 import { FlightStatus, SeatStatus } from './enums';
 
-// Airport DTOs
-export interface AirportDTO {
-  code: string;
-  name: string;
-  city: string;
-  timezone: string;
-}
-
 // Flight DTOs
 export interface FlightDTO {
   id: string;
@@ -21,7 +13,6 @@ export interface FlightDTO {
   status: FlightStatus;
   version: number;
   availableSeats?: number;
-  totalSeats?: number;
 }
 
 // Seat DTOs
@@ -46,36 +37,15 @@ export interface SeatSnapshotDTO {
   seats: SeatDTO[];
 }
 
-// Response of POST .../lock
-export interface LockDTO {
-  seat: string;
-  lockedUntil: string;
-  version: number;
-}
-
-// Response of POST .../checkout
-export interface CheckoutDTO {
-  lockedUntil: string;
-  payableUntil: string;
-  version: number;
-}
-
-// Ticket (boleto): never carries document, phone or email
+// Reservation DTOs
 export interface ReservationDTO {
   code: string;
-  flight: FlightDTO;
+  flightId: string;
   seat: string;
   passengerName: string;
   priceCents: number;
   currency: string;
   createdAt: string;
-}
-
-// Admin: active locks per stage
-export interface LockStagesDTO {
-  flightId: string;
-  selecting: number;
-  checkout: number;
 }
 
 // Passenger DTOs
@@ -100,6 +70,5 @@ export interface ErrorResponse {
   error: {
     code: string;
     message: string;
-    details?: Record<string, unknown>;
   };
 }

@@ -1,15 +1,17 @@
-import { ExpireLocksInputPort } from '../../application/inputPorts';
+import { DataSource } from 'typeorm';
+import { SeatEntity } from '../database/entities';
+import { SeatStatus } from '../../domain/enums';
 import { Logger } from '../outputPorts';
+import { config } from '../config/env';
 
-// Calls the ExpireLocks use case on an interval, never overlapping with itself
 export class LockExpirationJob {
   private running = false;
   private intervalId: NodeJS.Timeout | null = null;
 
   constructor(
-    private expireLocks: ExpireLocksInputPort,
+    private dataSource: DataSource,
     private logger: Logger,
-    private intervalMs: number
+    private onExpired?: (events: any[]) => Promise<void>
   ) {}
 
   start(): void {
@@ -19,10 +21,12 @@ export class LockExpirationJob {
     }
 
     this.intervalId = setInterval(() => {
-      void this.tick();
-    }, this.intervalMs);
+      this.execute();
+    }, config.EXPIRATION_JOB_INTERVAL_MS);
 
-    this.logger.info('Lock expiration job started', { intervalMs: this.intervalMs });
+    this.logger.info('Lock expiration job started', {
+      intervalMs: config.EXPIRATION_JOB_INTERVAL_MS
+    });
   }
 
   stop(): void {
@@ -33,12 +37,47 @@ export class LockExpirationJob {
     }
   }
 
-  private async tick(): Promise<void> {
-    if (this.running) return;
+  private async execute(): Promise<void> {
+    // Prevent overlapping executions
+    if (this.running) {
+      return;
+    }
 
     this.running = true;
+
     try {
-      await this.expireLocks.execute();
+      const queryRunner = this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+
+      const result = await queryRunner.manager.query(
+        `
+        UPDATE seats
+        SET status = 'AVAILABLE', locked_by = NULL, locked_until = NULL,
+            checkout_started_at = NULL, version = version + 1
+        WHERE status = 'BLOCKED' AND locked_until <= now()
+        RETURNING flight_id, seat_number, version
+        `
+      );
+
+      if (result.length > 0) {
+        this.logger.info('Locks expired', { count: result.length });
+
+        // Generate events
+        const events = result.map((row: any) => ({
+          type: 'seat.released',
+          flightId: row.flight_id,
+          seat: row.seat_number,
+          version: row.version,
+          reason: 'EXPIRED'
+        }));
+
+        // Publish events if handler provided
+        if (this.onExpired) {
+          await this.onExpired(events);
+        }
+      }
+
+      await queryRunner.release();
     } catch (error) {
       this.logger.error('Lock expiration job failed', { error: String(error) });
     } finally {

@@ -5,22 +5,18 @@ export interface RequestHashInput {
   seat: string;
   fullName: string;
   email: string;
-  documentType: string;
   documentNumber: string;
-  phone: string;
 }
 
-// Hash of the already-normalized flight, seat and passenger values.
-// Card data is excluded so nothing derived from the number is stored.
+// Hash the request data for idempotency
+// Excludes payment data (card, expiry, cvv) to avoid hashing sensitive info
 export function hashRequest(input: RequestHashInput): string {
   const data = JSON.stringify({
     flightId: input.flightId,
     seat: input.seat,
-    fullName: input.fullName,
-    email: input.email,
-    documentType: input.documentType,
-    documentNumber: input.documentNumber,
-    phone: input.phone
+    fullName: input.fullName.trim().toLowerCase(),
+    email: input.email.trim().toLowerCase(),
+    documentNumber: input.documentNumber.trim().toUpperCase()
   });
 
   return createHash('sha256').update(data).digest('hex');

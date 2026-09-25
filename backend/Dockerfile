@@ -1,41 +1,33 @@
-# Build context is the repository root: shared/ is compiled together with the backend.
+# Build stage
+FROM node:20-alpine AS builder
 
-# ---- Dependencies and build ----
-FROM node:20-alpine AS build
 WORKDIR /app
 
-# Manifests first so the dependency layer is cached until they change.
-# frontend/package.json is needed too: npm ci checks the lockfile against every workspace.
-COPY package.json package-lock.json ./
-COPY shared/package.json shared/
-COPY backend/package.json backend/
-COPY frontend/package.json frontend/
-RUN npm ci
-
+COPY package*.json ./
 COPY tsconfig.base.json ./
-COPY shared/ shared/
-COPY backend/ backend/
-RUN npm run build -w @flight-reservations/shared \
- && npm run build -w @flight-reservations/backend
+COPY shared/ ./shared/
+COPY backend/ ./backend/
 
-# ---- Runtime ----
-FROM node:20-alpine AS runtime
-ENV NODE_ENV=production
+RUN npm install
+RUN npm run build --workspace=@flight-reservations/shared
+RUN npm run build --workspace=@flight-reservations/backend
+
+# Runtime stage
+FROM node:20-alpine
+
 WORKDIR /app
 
-COPY package.json package-lock.json ./
-COPY shared/package.json shared/
-COPY backend/package.json backend/
-COPY frontend/package.json frontend/
-RUN npm ci --omit=dev -w @flight-reservations/backend -w @flight-reservations/shared \
- && npm cache clean --force
+COPY package*.json ./
+COPY tsconfig.base.json ./
+COPY --from=builder /app/shared/dist ./shared/dist
+COPY --from=builder /app/backend/dist ./backend/dist
+COPY backend/src/infraestructure/database/sql ./backend/src/infraestructure/database/sql
 
-COPY --from=build /app/shared/dist shared/dist
-COPY --from=build /app/backend/dist backend/dist
+RUN npm install --omit=dev
 
-# Unprivileged user (the image ships with `node`)
-USER node
+RUN addgroup -S nodeuser && adduser -S nodeuser -G nodeuser
+USER nodeuser
+
 EXPOSE 3000
 
-# Migrations and seed run when the server starts
 CMD ["node", "backend/dist/index.js"]

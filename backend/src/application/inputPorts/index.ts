@@ -1,29 +1,20 @@
-// Input ports define the contract of each use case; controllers depend on these, not on the classes.
-import {
-  AirportDTO,
-  CheckoutDTO,
-  FlightDTO,
-  LockDTO,
-  LockStagesDTO,
-  ReservationDTO,
-  SeatSnapshotDTO
-} from '@flight-reservations/shared';
-import { CreateReservationCommand, SearchFlightsQuery } from '../dtos';
+// Input ports define the contracts for all use cases
+// Each use case implements one of these interfaces
 
 export interface ListAirportsInputPort {
-  execute(): Promise<AirportDTO[]>;
+  execute(): Promise<void>;
 }
 
 export interface SearchFlightsInputPort {
-  execute(query: SearchFlightsQuery): Promise<FlightDTO[]>;
+  execute(origin: string, destination: string, date: string): Promise<void>;
 }
 
 export interface GetSeatSnapshotInputPort {
-  execute(flightId: string, clientId?: string): Promise<SeatSnapshotDTO>;
+  execute(flightId: string, clientId?: string): Promise<void>;
 }
 
 export interface LockSeatInputPort {
-  execute(flightId: string, seat: string, clientId: string): Promise<LockDTO>;
+  execute(flightId: string, seat: string, clientId: string, ttlSeconds: number): Promise<void>;
 }
 
 export interface UnlockSeatInputPort {
@@ -31,32 +22,33 @@ export interface UnlockSeatInputPort {
 }
 
 export interface StartCheckoutInputPort {
-  execute(flightId: string, seat: string, clientId: string): Promise<CheckoutDTO>;
-}
-
-export interface CreateReservationResult {
-  reservation: ReservationDTO;
-  // false when an earlier request with the same idempotency key had already completed
-  created: boolean;
+  execute(flightId: string, seat: string, clientId: string, ttlSeconds: number): Promise<void>;
 }
 
 export interface CreateReservationInputPort {
-  execute(command: CreateReservationCommand): Promise<CreateReservationResult>;
+  execute(
+    flightId: string,
+    seat: string,
+    clientId: string,
+    idempotencyKey: string,
+    requestHash: string,
+    passenger: { fullName: string; email: string; documentType: string; documentNumber: string; phone: string },
+    payment: { holderName: string; cardNumber: string; expiry: string; cvv: string }
+  ): Promise<void>;
 }
 
 export interface GetReservationInputPort {
-  execute(code: string): Promise<ReservationDTO>;
+  execute(code: string): Promise<void>;
 }
 
 export interface ChangeFlightStatusInputPort {
-  execute(flightId: string, action: 'cancel'): Promise<FlightDTO>;
+  execute(flightId: string, action: 'cancel'): Promise<void>;
 }
 
 export interface GetLockStagesInputPort {
-  execute(flightId: string): Promise<LockStagesDTO>;
+  execute(flightId: string): Promise<void>;
 }
 
 export interface ExpireLocksInputPort {
-  // Number of locks released
-  execute(): Promise<number>;
+  execute(): Promise<void>;
 }

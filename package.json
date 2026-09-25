@@ -10,7 +10,7 @@
   ],
   "scripts": {
     "dev": "npm run dev --workspaces --if-present",
-    "build": "npm run build -w @flight-reservations/shared && npm run build -w @flight-reservations/backend && npm run build -w @flight-reservations/frontend",
+    "build": "npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "db:reset": "docker-compose down -v && docker-compose up -d --build"

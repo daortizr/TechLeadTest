@@ -23,15 +23,6 @@ export class ReservationEntity {
   passenger_email!: string;
 
   @Column({ type: 'text' })
-  passenger_document_type!: string;
-
-  @Column({ type: 'text' })
-  passenger_document_number!: string;
-
-  @Column({ type: 'text' })
-  passenger_phone!: string;
-
-  @Column({ type: 'text' })
   client_id!: string;
 
   @Column({ type: 'integer' })

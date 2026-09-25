@@ -1,13 +1,7 @@
 import { DataSource, EntityManager } from 'typeorm';
 import { UnitOfWork, TransactionContext } from '../outputPorts';
-import { translatePgError } from '../utilities/pgErrors';
-import { logger } from '../utilities/logger';
 
-class PostgresTransactionContext implements TransactionContext {
-  readonly __brand = 'TransactionContext' as const;
-
-  constructor(readonly manager: EntityManager) {}
-}
+const TRANSACTION_CONTEXT_BRAND = Symbol('TransactionContext');
 
 export class UnitOfWorkImpl implements UnitOfWork {
   constructor(private dataSource: DataSource) {}
@@ -18,26 +12,27 @@ export class UnitOfWorkImpl implements UnitOfWork {
     await queryRunner.startTransaction();
 
     try {
-      const result = await work(new PostgresTransactionContext(queryRunner.manager));
+      const manager = queryRunner.manager;
+      const context = this.createContext(manager);
+      const result = await work(context);
       await queryRunner.commitTransaction();
       return result;
     } catch (error) {
-      try {
-        await queryRunner.rollbackTransaction();
-      } catch (rollbackError) {
-        // The connection may be gone; the original error is the one that gets thrown
-        logger.warn('Rollback failed', { error: String(rollbackError) });
-      }
-      throw translatePgError(error);
+      await queryRunner.rollbackTransaction();
+      throw error;
     } finally {
       await queryRunner.release();
     }
   }
 
+  private createContext(manager: EntityManager): TransactionContext {
+    return {
+      __brand: 'TransactionContext',
+      manager
+    } as any as TransactionContext;
+  }
+
   static getManager(context: TransactionContext): EntityManager {
-    if (!(context instanceof PostgresTransactionContext)) {
-      throw new Error('Invalid transaction context');
-    }
-    return context.manager;
+    return (context as any).manager;
   }
 }
